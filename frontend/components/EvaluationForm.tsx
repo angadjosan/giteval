@@ -28,7 +28,8 @@ export default function EvaluationForm() {
       const { owner, repo } = parseGitHubUrl(url);
 
       // Start evaluation
-      const response = await fetch('/api/evaluate', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),

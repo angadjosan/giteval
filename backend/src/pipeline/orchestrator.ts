@@ -201,3 +201,27 @@ export class AnalysisPipeline {
     }
   }
 }
+
+/**
+ * Convenience function to execute the pipeline for a job
+ */
+export async function executePipeline(jobId: string, owner: string, repo: string): Promise<any> {
+  const { getDatabaseService } = await import('../services/instances');
+  const databaseService = getDatabaseService();
+  
+  // Get the job from database
+  const job = await databaseService.getJob(jobId);
+  if (!job) {
+    throw new Error(`Job ${jobId} not found`);
+  }
+
+  // Update job status to processing
+  await databaseService.updateJob(jobId, {
+    status: 'processing',
+    progress: 0,
+  });
+
+  // Create pipeline instance and execute
+  const pipeline = new AnalysisPipeline();
+  return pipeline.executeOptimized(job);
+}

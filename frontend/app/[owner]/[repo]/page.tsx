@@ -46,7 +46,8 @@ export default function RepositoryReportPage({ params }: PageProps) {
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/evaluation/${jobId}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${apiUrl}/evaluation/${jobId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -83,7 +84,8 @@ export default function RepositoryReportPage({ params }: PageProps) {
 
   const fetchCachedReport = async () => {
     try {
-      const response = await fetch(`/api/report/${owner}/${repo}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/report/${owner}/${repo}`);
       const data = await response.json();
 
       if (!response.ok) {

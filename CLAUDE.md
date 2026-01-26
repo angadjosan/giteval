@@ -21,11 +21,13 @@ GitEval is a repository evaluation platform that analyzes GitHub repositories an
 This is a TypeScript monorepo with separate frontend and backend:
 
 ```
-/frontend    - Next.js 14+ (App Router) application
-/backend     - Analysis pipeline and services (Node.js/TypeScript)
+/frontend    - Next.js 14+ (App Router) application - PURE CLIENT (no API routes)
+/backend     - Express API server + Analysis pipeline (Node.js/TypeScript)
 /shared      - Shared TypeScript type definitions
 /supabase    - Database configuration and migrations
 ```
+
+**IMPORTANT**: The frontend is a **pure client application** with NO API routes. All API logic, database access, and environment variables are in the backend Express server. The frontend only makes HTTP calls to the backend.
 
 ### Tech Stack
 
@@ -56,14 +58,12 @@ This is a TypeScript monorepo with separate frontend and backend:
 
 **Status:** Substantially implemented with working UI components
 
-**Routing:**
+**Page Routing:**
 - `/` - Landing page with hero, features, how-it-works, evaluation criteria
 - `/[owner]/[repo]` - Repository evaluation report (skeleton structure)
 - `/[username]` - User profile evaluation (skeleton structure)
-- `/api/evaluate` - POST endpoint to start evaluation
-- `/api/evaluation/[id]` - GET endpoint for evaluation status polling
-- `/api/report/[owner]/[repo]` - GET endpoint for cached reports
-- `/api/user-profile` - POST endpoint for user profile evaluation
+
+**IMPORTANT**: The frontend has **NO API routes**. All API requests are made to the backend Express server at `NEXT_PUBLIC_API_URL`.
 
 **Components** (`/frontend/components/`):
 All components are fully implemented:
@@ -136,6 +136,16 @@ All services are fully implemented and accessed via singleton pattern through `/
 
 **Database** (`/backend/src/db/`):
 - `supabase.ts` - Database service implementation with type conversions
+
+**Express API Server** (`/backend/src/index.ts`):
+All API endpoints are in the backend Express server:
+- `POST /api/evaluate` - Start repository evaluation
+- `GET /api/evaluation/:id` - Get evaluation status and results (for polling)
+- `GET /api/report/:owner/:repo` - Get cached evaluation report
+- `POST /api/user-profile` - Start user profile evaluation
+- `GET /health` - Health check endpoint
+
+The server includes CORS middleware to allow the frontend to make requests.
 
 ### Shared Types (`/shared/types.ts`)
 
@@ -221,9 +231,11 @@ npm run lint         # Run ESLint
 
 **Environment Variables** (`.env.local`):
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+# Backend API URL (used by frontend to call backend)
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ```
+
+**IMPORTANT**: The frontend has NO secrets or backend-specific environment variables. It only needs the backend API URL.
 
 ### Backend
 
@@ -243,24 +255,30 @@ GITHUB_API_URL=https://api.github.com
 
 # Claude API
 CLAUDE_API_KEY=<anthropic-api-key>
-CLAUDE_MODEL=claude-opus-4-5-20251101
+CLAUDE_MODEL=claude-sonnet-4-5
 
-# Database
-SUPABASE_URL=<project-url>
-SUPABASE_KEY=<service-role-key>
+# Database (Supabase)
+SUPABASE_URL=<postgresql-connection-string>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # Cache
-REDIS_URL=<redis-connection-string>
+REDIS_URL=redis://localhost:6379
+
+# Storage
+TEMP_DIR=/tmp/giteval
+
+# Application
+NODE_ENV=development
+PORT=3001
+FRONTEND_URL=http://localhost:3000  # For CORS
 
 # Limits
-MAX_REPO_SIZE=1073741824      # 1GB in bytes
-MAX_FILE_COUNT=10000
-ANALYSIS_TIMEOUT=300000        # 5 minutes in ms
-CLONE_TIMEOUT=60000           # 1 minute in ms
-
-# Server
-PORT=3001
+MAX_REPO_SIZE_MB=1024
+MAX_REPO_FILES=10000
+ANALYSIS_TIMEOUT_MS=300000
 ```
+
+**IMPORTANT**: ALL secrets and API keys are in the backend only. The frontend never has access to these values.
 
 ### Supabase
 
@@ -372,7 +390,15 @@ The project maintains strict type safety:
 
 ## Important Design Decisions
 
-### 1. Commit SHA as Cache Key
+### 1. Backend-Only API Architecture
+**The frontend is a pure client application with NO API routes.** All API logic, database access, GitHub API calls, Claude API calls, and environment variables live in the backend Express server. This prevents:
+- Duplication of logic between frontend and backend
+- Exposure of secrets in the frontend
+- Confusion about where business logic should live
+
+The frontend only makes HTTP requests to the backend at `NEXT_PUBLIC_API_URL`.
+
+### 2. Commit SHA as Cache Key
 Always include commit SHA in cache lookups to ensure evaluations match specific code versions. Never cache by URL alone. If a repository is updated, the new commit gets a fresh evaluation.
 
 ### 2. No Code Storage

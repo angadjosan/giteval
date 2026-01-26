@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Home, User, GitFork } from 'lucide-react';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     username: string;
-  };
+  }>;
 }
 
 export default function UserProfilePage({ params }: PageProps) {
-  const { username } = params;
+  const { username } = use(params);
   const [isComingSoon] = useState(true);
 
   if (isComingSoon) {

@@ -32,12 +32,35 @@ export class CacheService {
   }
 
   async connect(): Promise<void> {
-    if (!this.client || this.connected) return;
+    if (!this.client) return;
+
+    // Check if already connected
+    if (this.connected) {
+      return;
+    }
+
+    // Check if client is already open (using type assertion for isOpen property)
+    try {
+      const clientAny = this.client as any;
+      if (clientAny.isOpen || clientAny.isReady) {
+        this.connected = true;
+        return;
+      }
+    } catch {
+      // Property might not exist, continue to connect
+    }
 
     try {
       await this.client.connect();
       this.connected = true;
-    } catch (error) {
+    } catch (error: any) {
+      // If already connected, just mark as connected
+      if (error.message?.includes('already opened') || 
+          error.message?.includes('already connected') ||
+          error.message?.includes('Socket already opened')) {
+        this.connected = true;
+        return;
+      }
       console.error('Failed to connect to Redis:', error);
       this.connected = false;
     }

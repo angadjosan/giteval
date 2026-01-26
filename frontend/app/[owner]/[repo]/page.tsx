@@ -1,27 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Evaluation } from '../../lib/types';
-import ScoreDisplay from '../../components/ScoreDisplay';
-import CategoryBreakdown from '../../components/CategoryBreakdown';
-import ArchitectureDiagram from '../../components/ArchitectureDiagram';
-import InsightsList from '../../components/InsightsList';
-import MetricsVisualization from '../../components/MetricsVisualization';
-import RepositoryMetadata from '../../components/RepositoryMetadata';
-import SharePanel from '../../components/SharePanel';
+import { Evaluation } from '@/lib/types';
+import ScoreDisplay from '@/components/ScoreDisplay';
+import CategoryBreakdown from '@/components/CategoryBreakdown';
+import ArchitectureDiagram from '@/components/ArchitectureDiagram';
+import InsightsList from '@/components/InsightsList';
+import MetricsVisualization from '@/components/MetricsVisualization';
+import RepositoryMetadata from '@/components/RepositoryMetadata';
+import SharePanel from '@/components/SharePanel';
 import { Loader2, AlertCircle, Home } from 'lucide-react';
 import Link from 'next/link';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     owner: string;
     repo: string;
-  };
+  }>;
 }
 
 export default function RepositoryReportPage({ params }: PageProps) {
-  const { owner, repo } = params;
+  const { owner, repo } = use(params);
   const searchParams = useSearchParams();
   const evaluationId = searchParams.get('evaluationId');
 

@@ -20,7 +20,8 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    res.sendStatus(200);
+    return;
   }
   next();
 });
@@ -88,7 +89,7 @@ app.post('/api/evaluate', async (req: express.Request, res: express.Response) =>
 // GET /api/evaluation/:id - Get evaluation status and results
 app.get('/api/evaluation/:id', async (req: express.Request, res: express.Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       return res.status(400).json({ error: 'Evaluation ID is required' });
@@ -128,7 +129,8 @@ app.get('/api/evaluation/:id', async (req: express.Request, res: express.Respons
 // GET /api/report/:owner/:repo - Get cached evaluation report
 app.get('/api/report/:owner/:repo', async (req: express.Request, res: express.Response) => {
   try {
-    const { owner, repo } = req.params;
+    const owner = req.params.owner as string;
+    const repo = req.params.repo as string;
 
     if (!owner || !repo) {
       return res.status(400).json({ error: 'Owner and repository name are required' });

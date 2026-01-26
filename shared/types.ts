@@ -18,6 +18,7 @@ export interface Evaluation {
   strengths: string[];
   improvements: string[];
   suggestions: Suggestion[];
+  categoryScores: CategoryScore[];
 
   architectureDiagram: string;
   metrics: Metrics;

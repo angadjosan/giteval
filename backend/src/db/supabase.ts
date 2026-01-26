@@ -74,7 +74,10 @@ export class DatabaseService {
       return null;
     }
 
-    return this.fromDbEvaluation(data);
+    // Fetch category scores
+    const categoryScores = await this.getCategoryScores(id);
+
+    return this.fromDbEvaluation(data, categoryScores);
   }
 
   async getEvaluationByRepo(
@@ -100,7 +103,10 @@ export class DatabaseService {
       return null;
     }
 
-    return this.fromDbEvaluation(data);
+    // Fetch category scores
+    const categoryScores = await this.getCategoryScores(data.id);
+
+    return this.fromDbEvaluation(data, categoryScores);
   }
 
   async getCategoryScores(evaluationId: string): Promise<CategoryScore[]> {
@@ -188,8 +194,11 @@ export class DatabaseService {
       resultId?: string;
     }
   ): Promise<void> {
+    // Extract resultId before spreading to avoid camelCase in database
+    const { resultId, ...restUpdates } = updates;
+    
     const updateData: any = { 
-      ...updates,
+      ...restUpdates,
       updated_at: new Date().toISOString()
     };
 
@@ -201,8 +210,8 @@ export class DatabaseService {
       updateData.completed_at = new Date().toISOString();
     }
 
-    if (updates.resultId) {
-      updateData.result_id = updates.resultId;
+    if (resultId) {
+      updateData.result_id = resultId;
     }
 
     const { error } = await this.client
@@ -266,7 +275,7 @@ export class DatabaseService {
     };
   }
 
-  private fromDbEvaluation(dbEval: DbEvaluation): Evaluation {
+  private fromDbEvaluation(dbEval: DbEvaluation, categoryScores: CategoryScore[] = []): Evaluation {
     return {
       id: dbEval.id,
       repositoryUrl: dbEval.repository_url,
@@ -281,6 +290,7 @@ export class DatabaseService {
       strengths: dbEval.strengths || [],
       improvements: dbEval.improvements || [],
       suggestions: dbEval.suggestions || [],
+      categoryScores: categoryScores,
       architectureDiagram: dbEval.architecture_diagram,
       metrics: dbEval.metrics || {},
       metadata: dbEval.metadata || {},

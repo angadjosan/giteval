@@ -95,7 +95,8 @@ export default function MetricsVisualization({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => {
+                  formatter={(value: number | undefined) => {
+                    if (value === undefined) return ['', 'Size'];
                     const percentage = ((value / totalBytes) * 100).toFixed(1);
                     return [`${formatNumber(value)} bytes (${percentage}%)`, 'Size'];
                   }}

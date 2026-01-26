@@ -41,6 +41,7 @@ export class ReportAssemblyStep implements PipelineStep {
         strengths: context.data.strengths || [],
         improvements: context.data.improvements || [],
         suggestions: context.data.suggestions || [],
+        categoryScores,
 
         architectureDiagram: context.data.architectureDiagram || '',
         metrics: context.data.metrics || {

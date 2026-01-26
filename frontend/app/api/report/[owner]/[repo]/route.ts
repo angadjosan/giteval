@@ -1,16 +1,50 @@
+// GET /api/report/[owner]/[repo] - Get cached evaluation report
 import { NextRequest, NextResponse } from 'next/server';
+import { getEvaluationByRepo } from '../../../../../backend/src/db/supabase';
+import { getCommitSha } from '../../../../../backend/src/services/github';
 
-// GET /api/report/[owner]/[repo]
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ owner: string; repo: string }> }
+  { params }: { params: { owner: string; repo: string } }
 ) {
-  const { owner, repo } = await params;
+  try {
+    const { owner, repo } = params;
 
-  // TODO: Implement get cached report
-  // 1. Get latest commit SHA from GitHub
-  // 2. Check cache for evaluation
-  // 3. Return evaluation data or null
+    if (!owner || !repo) {
+      return NextResponse.json(
+        { error: 'Owner and repository name are required' },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json(null);
+    // Get latest commit SHA
+    let commitSha: string;
+    try {
+      commitSha = await getCommitSha(owner, repo);
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: `Failed to fetch repository: ${error.message}` },
+        { status: 404 }
+      );
+    }
+
+    // Get evaluation from database
+    const evaluation = await getEvaluationByRepo(owner, repo, commitSha);
+
+    if (!evaluation) {
+      return NextResponse.json(
+        { error: 'No evaluation found for this repository. Please run an evaluation first.' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(evaluation);
+
+  } catch (error: any) {
+    console.error('[API] Error fetching report:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch report' },
+      { status: 500 }
+    );
+  }
 }

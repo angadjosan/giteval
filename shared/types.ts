@@ -1,8 +1,4 @@
-// Type definitions for GitEval
-// NOTE: This file re-exports from shared/types.ts for backward compatibility
-// New code should import directly from '../../../shared/types'
-
-export * from '../../../shared/types';
+// Shared type definitions for GitEval (used by both frontend and backend)
 
 export type Grade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D' | 'F';
 

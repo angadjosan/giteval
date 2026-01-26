@@ -1,6 +1,6 @@
 // Analysis pipeline orchestrator
-import { Job } from '../../frontend/lib/types';
-import { updateJob } from '../db/supabase';
+import { Job } from '../../../shared/types';
+import { DatabaseService } from '../db';
 import { CacheCheckStep } from './cache-check';
 import { CloneStep } from './clone';
 import { StaticAnalysisStep } from './static-analysis';
@@ -80,10 +80,11 @@ export class AnalysisPipeline {
         // If cache hit, return early
         if (context.data.cached && step.name === 'CacheCheck') {
           console.log('[Pipeline] Cache hit, returning cached evaluation');
+          const { updateJob } = await import('../db');
           await updateJob(job.id, {
             status: 'completed',
             progress: 100,
-            result_id: context.data.evaluation.id,
+            resultId: context.data.evaluation.id,
           });
           return context.data.evaluation;
         }
@@ -116,10 +117,11 @@ export class AnalysisPipeline {
       await this.updateJobProgress(job.id, 7);
 
       if (context.data.cached) {
+        const { updateJob } = await import('../db');
         await updateJob(job.id, {
           status: 'completed',
           progress: 100,
-          result_id: context.data.evaluation.id,
+          resultId: context.data.evaluation.id,
         });
         return context.data.evaluation;
       }
@@ -176,6 +178,7 @@ export class AnalysisPipeline {
    */
   private async updateJobProgress(jobId: string, progress: number): Promise<void> {
     try {
+      const { updateJob } = await import('../db');
       await updateJob(jobId, { progress });
     } catch (error) {
       console.error('[Pipeline] Failed to update job progress:', error);
@@ -188,6 +191,7 @@ export class AnalysisPipeline {
    */
   private async handleStepFailure(jobId: string, error: any): Promise<void> {
     try {
+      const { updateJob } = await import('../db');
       await updateJob(jobId, {
         status: 'failed',
         error: error.message || 'Unknown error occurred',

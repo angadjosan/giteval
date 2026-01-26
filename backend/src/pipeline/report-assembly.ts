@@ -1,6 +1,6 @@
 // Step 12: Report assembly - combine all data into final evaluation
 import { PipelineStep, PipelineContext } from './orchestrator';
-import { Evaluation, CategoryScore } from '../../frontend/lib/types';
+import { Evaluation, CategoryScore } from '../../../shared/types';
 
 export class ReportAssemblyStep implements PipelineStep {
   name = 'ReportAssembly';

@@ -1,5 +1,5 @@
-import type { RepositoryMetadata, Contributor } from '../../../frontend/lib/types';
-import { ErrorCode, EvaluationError } from '../../../frontend/lib/types';
+import type { RepositoryMetadata, Contributor } from '../../../shared/types';
+import { ErrorCode, EvaluationError } from '../../../shared/types';
 
 interface GitHubRepo {
   name: string;
@@ -77,7 +77,7 @@ export class GitHubService {
       );
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   async getRepository(owner: string, repo: string): Promise<GitHubRepo> {
@@ -183,4 +183,27 @@ export class GitHubService {
       throw error;
     }
   }
+}
+
+// Convenience function exports
+import { getGitHubService } from './instances';
+
+export async function getCommitSha(owner: string, repo: string, branch?: string): Promise<string> {
+  return getGitHubService().getCommitSha(owner, repo, branch);
+}
+
+export async function getRepositoryMetadata(owner: string, repo: string) {
+  return getGitHubService().getRepositoryMetadata(owner, repo);
+}
+
+export async function getRepoSize(owner: string, repo: string): Promise<number> {
+  return getGitHubService().getRepoSize(owner, repo);
+}
+
+export async function getLanguageDistribution(owner: string, repo: string): Promise<Record<string, number>> {
+  return getGitHubService().getLanguageDistribution(owner, repo);
+}
+
+export function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+  return getGitHubService().parseGitHubUrl(url);
 }

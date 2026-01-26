@@ -4,8 +4,8 @@ import type {
   Suggestion,
   Grade,
   Metrics
-} from '../../../frontend/lib/types';
-import { ErrorCode, EvaluationError } from '../../../frontend/lib/types';
+} from '../../../shared/types';
+import { ErrorCode, EvaluationError } from '../../../shared/types';
 
 interface ClaudeEvaluationResponse {
   overallScore: number;
@@ -314,4 +314,15 @@ Be objective, specific, and provide concrete evidence for all scores. Respond ON
     if (score >= 60) return 'D';
     return 'F';
   }
+}
+
+// Convenience function exports
+import { getClaudeService } from './instances';
+
+export async function evaluateRepository(input: AnalysisInput): Promise<ClaudeEvaluationResponse> {
+  return getClaudeService().evaluateRepository(input);
+}
+
+export async function generateArchitectureDiagram(input: AnalysisInput): Promise<string> {
+  return getClaudeService().generateArchitectureDiagram(input);
 }

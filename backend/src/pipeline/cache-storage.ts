@@ -1,8 +1,7 @@
 // Step 13: Cache storage - store evaluation in Redis and database
 import { PipelineStep, PipelineContext } from './orchestrator';
 import { setEvaluation } from '../services/cache';
-import { saveEvaluation } from '../db/supabase';
-import { updateJob } from '../db/supabase';
+import { saveEvaluation, updateJob } from '../db';
 
 export class CacheStorageStep implements PipelineStep {
   name = 'CacheStorage';
@@ -36,9 +35,9 @@ export class CacheStorageStep implements PipelineStep {
       // Store in Redis (hot cache)
       await setEvaluation(owner, repo, commitSha, savedEvaluation);
 
-      // Update job with result_id
+      // Update job with resultId
       await updateJob(context.job.id, {
-        result_id: savedEvaluation.id,
+        resultId: savedEvaluation.id,
       });
 
       console.log('[CacheStorage] Evaluation stored successfully:', {

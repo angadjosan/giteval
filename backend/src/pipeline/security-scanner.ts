@@ -214,9 +214,9 @@ export class SecurityScannerStep implements PipelineStep {
       }
 
       return { scanned: false, note: 'No supported dependency manager found' };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SecurityScanner] Dependency security check failed:', error);
-      return { scanned: false, error: error.message };
+      return { scanned: false, error: error?.message || 'Unknown error' };
     }
   }
 

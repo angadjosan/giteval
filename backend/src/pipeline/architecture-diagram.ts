@@ -1,6 +1,7 @@
 // Step 10: Architecture diagram generation using Claude
 import { PipelineStep, PipelineContext } from './orchestrator';
 import { generateArchitectureDiagram } from '../services/claude';
+import type { Metrics, RepositoryMetadata } from '../../../shared/types';
 
 export class ArchitectureDiagramStep implements PipelineStep {
   name = 'ArchitectureDiagram';
@@ -11,15 +12,24 @@ export class ArchitectureDiagramStep implements PipelineStep {
     try {
       console.log('[ArchitectureDiagram] Generating architecture diagram');
 
+      const metadata = context.data.repositoryMetadata as RepositoryMetadata;
+      const metrics = context.data.metrics as Metrics;
+
+      if (!metadata || !metrics) {
+        throw new Error('Missing metadata or metrics for diagram generation');
+      }
+
       // Prepare context for diagram generation
       const diagramContext = {
+        repoName: `${owner}/${repo}`,
         owner,
         repo,
-        projectType: context.data.projectType,
-        languages: context.data.languages,
-        fileStructure: context.data.fileStructure,
-        dependencies: context.data.projectDependencies,
-        metadata: context.data.repositoryMetadata,
+        description: metadata.description,
+        languages: metadata.languages,
+        stars: metadata.stars,
+        metrics,
+        readmeContent: context.data.readmeContent,
+        sampleCode: context.data.sampleCode,
       };
 
       // Generate Mermaid diagram using Claude
@@ -39,11 +49,11 @@ export class ArchitectureDiagramStep implements PipelineStep {
 
   private generateFallbackDiagram(context: PipelineContext): string {
     // Generate a simple fallback diagram
-    const projectType = context.data.projectType || 'Application';
-    const languages = Object.keys(context.data.languages || {}).join(', ') || 'Multiple';
+    const metadata = context.data.repositoryMetadata as RepositoryMetadata | undefined;
+    const languages = metadata?.languages.join(', ') || 'Multiple';
 
     return `graph TD
-    A[${projectType}] --> B[${languages}]
+    A[${context.repo}] --> B[${languages}]
     B --> C[Source Code]
     B --> D[Tests]
     C --> E[Build Output]`;

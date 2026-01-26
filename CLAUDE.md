@@ -7,93 +7,204 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 GitEval is a repository evaluation platform that analyzes GitHub repositories and provides comprehensive scoring, insights, and architecture diagrams. The system uses AI (Claude API) to evaluate code quality and product quality, generating shareable reports at `giteval.com/owner/repo`.
 
 **Key Features:**
-- Repository evaluation with scores out of 100
-- AI-powered code quality analysis
-- Architecture diagram generation
-- Caching system (Redis + Supabase)
+- Repository evaluation with scores out of 100 (graded A+ to F)
+- AI-powered code quality analysis using Claude Opus 4.5
+- Architecture diagram generation (Mermaid.js)
+- Three-layer caching system (Redis + Supabase + CDN)
 - User profile evaluation (aggregates all repos for a user)
+- Real-time progress tracking during analysis
 
 ## Architecture
 
 ### Monorepo Structure
 
-This is a monorepo with separate frontend and backend:
+This is a TypeScript monorepo with separate frontend and backend:
 
 ```
 /frontend    - Next.js 14+ (App Router) application
 /backend     - Analysis pipeline and services (Node.js/TypeScript)
-/supabase    - Database configuration
+/shared      - Shared TypeScript type definitions
+/supabase    - Database configuration and migrations
 ```
+
+### Tech Stack
+
+**Frontend:**
+- Next.js 16.1.4 with App Router
+- React 19.2.3
+- TypeScript 5
+- TailwindCSS 4
+- Recharts (data visualization)
+- Mermaid.js (architecture diagrams)
+- Supabase client
+- React Hot Toast (notifications)
+- Lucide React (icons)
+
+**Backend:**
+- Node.js with Express 5
+- TypeScript 5
+- Anthropic SDK (Claude API)
+- Redis (hot cache)
+- Supabase/PostgreSQL (persistent storage)
+- Simple Git (repository cloning)
+
+**External APIs:**
+- GitHub API (repository data)
+- Claude API (AI evaluation)
 
 ### Frontend (Next.js)
 
-- **Framework:** Next.js 14+ with App Router
-- **Styling:** TailwindCSS 4
-- **Visualizations:** Recharts for charts, Mermaid.js for architecture diagrams
-- **Key Dependencies:** `react-hot-toast`, `lucide-react`, `clsx`
+**Status:** Substantially implemented with working UI components
 
 **Routing:**
-- `/` - Landing page with repository input form
-- `/[owner]/[repo]` - Repository evaluation report
-- `/[username]` - User profile evaluation
+- `/` - Landing page with hero, features, how-it-works, evaluation criteria
+- `/[owner]/[repo]` - Repository evaluation report (skeleton structure)
+- `/[username]` - User profile evaluation (skeleton structure)
 - `/api/evaluate` - POST endpoint to start evaluation
-- `/api/evaluation/[id]` - GET endpoint for evaluation status
+- `/api/evaluation/[id]` - GET endpoint for evaluation status polling
 - `/api/report/[owner]/[repo]` - GET endpoint for cached reports
 - `/api/user-profile` - POST endpoint for user profile evaluation
 
-**Components:**
-- All UI components are in `/frontend/components/` (currently stubs)
-- Types are defined in `/frontend/lib/types.ts`
-- Utilities in `/frontend/lib/utils.ts`
+**Components** (`/frontend/components/`):
+All components are fully implemented:
+- `EvaluationForm.tsx` - Repository URL input with validation and examples
+- `ScoreDisplay.tsx` - Overall score and grade visualization
+- `CategoryBreakdown.tsx` - Detailed category scores
+- `ArchitectureDiagram.tsx` - Mermaid diagram renderer
+- `InsightsList.tsx` - Strengths and improvements
+- `MetricsVisualization.tsx` - Charts and graphs (Recharts)
+- `RepositoryMetadata.tsx` - Repository stats and info
+- `SharePanel.tsx` - Social sharing functionality
+- `ScrollToTopButton.tsx` - UX enhancement
+
+**Utilities:**
+- `/frontend/lib/types.ts` - Frontend-specific type definitions (mirrors shared types)
+- `/frontend/lib/utils.ts` - Utility functions (clsx wrapper)
 
 ### Backend (Analysis Pipeline)
 
-The backend implements a multi-step analysis pipeline in `/backend/src/pipeline/`:
+**Status:** Fully implemented with all 14 pipeline steps
 
-**Pipeline Steps (in order):**
-1. `cache-check.ts` - Check if evaluation exists in cache
-2. `clone.ts` - Clone repository to temporary directory
-3. `static-analysis.ts` - Language detection, file structure
-4. `code-parser.ts` - AST parsing using Tree-sitter
-5. `test-analyzer.ts` - Test detection and coverage analysis
-6. `documentation-scanner.ts` - README and documentation analysis
-7. `security-scanner.ts` - Basic vulnerability detection
-8. `metrics-collector.ts` - Aggregate all metrics
-9. `ai-evaluator.ts` - Claude API evaluation
-10. `architecture-diagram.ts` - Generate Mermaid diagram
-11. `visualization.ts` - Generate charts and graphs
-12. `report-assembly.ts` - Assemble final report
-13. `cache-storage.ts` - Store results in cache
-14. `cleanup.ts` - Remove temporary files
+The backend implements a sequential analysis pipeline orchestrated by `/backend/src/pipeline/orchestrator.ts` (203 lines).
 
-**Services:**
-- `github.ts` - GitHub API integration
-- `claude.ts` - Claude API for AI evaluation
-- `cache.ts` - Redis cache service
-- `supabase.ts` - Database operations
+**Pipeline Steps** (`/backend/src/pipeline/`):
 
-### Caching Strategy
+1. **cache-check.ts** (50 lines) - Check Redis and Supabase for cached evaluation
+2. **clone.ts** (82 lines) - Clone repository with size/file limits (1GB, 10k files)
+3. **static-analysis.ts** (154 lines) - Language detection, line counts, file structure
+4. **code-parser.ts** (208 lines) - AST analysis, complexity metrics, dependency extraction
+5. **test-analyzer.ts** (258 lines) - Test detection, coverage analysis, quality assessment
+6. **documentation-scanner.ts** (261 lines) - README analysis, comment parsing, documentation quality
+7. **security-scanner.ts** (303 lines) - Vulnerability detection, hardcoded secret scanning
+8. **metrics-collector.ts** (81 lines) - Aggregate all metrics from previous steps
+9. **ai-evaluator.ts** (59 lines) - Claude API evaluation with detailed rubric
+10. **architecture-diagram.ts** (61 lines) - Generate Mermaid architecture diagram
+11. **visualization.ts** (95 lines) - Generate chart data for frontend
+12. **report-assembly.ts** (83 lines) - Assemble final evaluation report
+13. **cache-storage.ts** (52 lines) - Store results in Redis and Supabase
+14. **cleanup.ts** (47 lines) - Remove temporary cloned repository
 
-Three-layer cache system:
-1. **Redis (Hot Cache)** - 24 hour TTL, format: `eval:${owner}:${repo}:${commitSha}`
-2. **Supabase (Warm Cache)** - Persistent storage, indexed by owner/repo/commitSha
-3. **CDN (Edge Cache)** - 1 hour TTL for rendered pages
+**Services** (`/backend/src/services/`):
 
-Cache key always includes commit SHA to ensure evaluations are tied to specific code versions.
+All services are fully implemented and accessed via singleton pattern through `/backend/src/instances.ts`:
+
+- **github.ts** - GitHub API integration
+  - Repository data fetching
+  - Commit SHA retrieval
+  - Language distribution
+  - Contributor data
+  - URL parsing (supports multiple formats)
+  - Repository size validation
+
+- **claude.ts** - Claude API integration
+  - Repository evaluation with structured rubric
+  - Architecture diagram generation
+  - JSON response parsing and validation
+  - Uses claude-opus-4-5-20251101 model
+
+- **cache.ts** - Redis caching
+  - 24-hour TTL for evaluations
+  - Job progress tracking
+  - Key format: `eval:${owner}:${repo}:${commitSha}`
+
+- **supabase.ts** (DatabaseService) - PostgreSQL operations
+  - Evaluation storage and retrieval
+  - Category scores management
+  - User profile management
+  - Job queue operations
+  - Database-to-TypeScript type conversion
+
+**Database** (`/backend/src/db/`):
+- `supabase.ts` - Database service implementation with type conversions
+
+### Shared Types (`/shared/types.ts`)
+
+Comprehensive TypeScript type definitions shared between frontend and backend:
+
+**Core Types:**
+- `Evaluation` - Complete evaluation result
+- `CategoryScore` - Category-level scores (Testing, Code Organization, etc.)
+- `CriterionScore` - Individual criterion within a category
+- `Suggestion` - Improvement recommendations with priority and impact
+- `Metrics` - Code metrics (languages, lines, files, complexity, dependencies)
+- `RepositoryMetadata` - GitHub repository information
+- `UserProfile` - User evaluation aggregation
+- `Job` - Async job tracking with progress
+- `Grade` - Letter grades (A+ to F)
+
+**Supporting Types:**
+- `Dependency` - Package dependency with vulnerabilities
+- `Vulnerability` - Security vulnerability data
+- `FileNode` - File structure tree
+- `Contributor` - Repository contributor
+- `ErrorCode` - Structured error handling enum
+
+**API Types:**
+- Request/Response types for all endpoints
+- Database conversion types for Supabase
 
 ### Evaluation Rubric
 
 **Code Quality (60 points):**
-- Testing (20 pts) - Coverage, quality, edge cases
-- Code Organization (15 pts) - Structure, modularity, separation of concerns
-- Documentation (10 pts) - README, comments, API docs
-- Performance (10 pts) - Algorithm efficiency, scalability
-- Best Practices (5 pts) - Error handling, security, CI/CD
+- **Testing (20 pts)** - Coverage, quality, edge cases, anti-gaming detection
+- **Code Organization (15 pts)** - Structure, modularity, separation of concerns
+- **Documentation (10 pts)** - README quality, comments, API docs
+- **Performance (10 pts)** - Algorithm efficiency, scalability considerations
+- **Best Practices (5 pts)** - Error handling, security, CI/CD setup
 
 **Product Quality (40 points):**
-- Problem Novelty (15 pts) - Uniqueness of problem
-- Real-World Utility (15 pts) - Solves genuine need, production-ready
-- Technical Difficulty (10 pts) - Problem complexity, implementation sophistication
+- **Problem Novelty (15 pts)** - Uniqueness of problem being solved
+- **Real-World Utility (15 pts)** - Solves genuine need, production-ready
+- **Technical Difficulty (10 pts)** - Problem complexity, implementation sophistication
+
+**Anti-Gaming Mechanisms:**
+The AI evaluator detects and penalizes:
+- Auto-generated test files with low assertion quality
+- Copy-pasted boilerplate code
+- Suspicious commit patterns (e.g., massive test file dumps)
+- Over-documentation of trivial code
+- README claims not matching actual implementation
+
+### Caching Strategy
+
+Three-layer cache system:
+
+1. **Redis (Hot Cache)**
+   - 24 hour TTL
+   - Key format: `eval:${owner}:${repo}:${commitSha}`
+   - Fastest lookup for recent evaluations
+
+2. **Supabase (Warm Cache)**
+   - Persistent storage in PostgreSQL
+   - Indexed by owner/repo/commitSha
+   - Fallback when Redis expires
+
+3. **CDN (Edge Cache)**
+   - Planned for production deployment
+   - 1 hour TTL for rendered pages
+   - Not yet implemented
+
+**Important:** Cache keys always include commit SHA to ensure evaluations are tied to specific code versions.
 
 ## Development Commands
 
@@ -108,118 +219,326 @@ npm run start        # Start production server
 npm run lint         # Run ESLint
 ```
 
+**Environment Variables** (`.env.local`):
+```bash
+NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+```
+
 ### Backend
 
 ```bash
 cd backend
 npm install          # Install dependencies
-npm run dev          # Start development server (when implemented)
-npm test             # Run tests (not yet implemented)
+npm run dev          # Start Express server on port 3001
+npm run build        # Compile TypeScript to dist/
+npm start            # Run compiled JavaScript
+```
+
+**Environment Variables** (`.env`):
+```bash
+# GitHub API
+GITHUB_TOKEN=<personal-access-token>
+GITHUB_API_URL=https://api.github.com
+
+# Claude API
+CLAUDE_API_KEY=<anthropic-api-key>
+CLAUDE_MODEL=claude-opus-4-5-20251101
+
+# Database
+SUPABASE_URL=<project-url>
+SUPABASE_KEY=<service-role-key>
+
+# Cache
+REDIS_URL=<redis-connection-string>
+
+# Limits
+MAX_REPO_SIZE=1073741824      # 1GB in bytes
+MAX_FILE_COUNT=10000
+ANALYSIS_TIMEOUT=300000        # 5 minutes in ms
+CLONE_TIMEOUT=60000           # 1 minute in ms
+
+# Server
+PORT=3001
 ```
 
 ### Supabase
 
-The project uses Supabase for database. Configuration is in `/supabase/config.toml`.
+**IMPORTANT:** Always use Supabase CLI for migrations.
 
-**IMPORTANT** if you EVER want to make a migration. Please run supabase migration new. Do not try to make a migration in any other way.
+```bash
+# Create a new migration
+supabase migration new <migration_name>
+
+# Apply migrations locally
+supabase db reset
+
+# Push to production
+supabase db push
+```
+
+Configuration is in `/supabase/config.toml`.
 
 **Database Schema:**
-- `evaluations` - Stores repository evaluation results
+- `evaluations` - Repository evaluation results
 - `category_scores` - Detailed score breakdowns by category
 - `user_profiles` - User profile evaluations
-- `jobs` - Async job queue for processing
+- `jobs` - Async job queue with progress tracking
 
 ## Key Implementation Patterns
 
 ### Pipeline Context
 
-The analysis pipeline uses a shared context object passed between steps:
+The analysis pipeline uses a shared context object passed through all steps:
 
 ```typescript
 interface PipelineContext {
-  job: any;
-  owner: string;
-  repo: string;
+  job: any;              // Job from database with progress tracking
+  owner: string;         // Repository owner
+  repo: string;          // Repository name
   data: Record<string, any>;  // Accumulates results from each step
 }
 ```
 
-Each pipeline step:
-1. Reads from `context.data` (results from previous steps)
-2. Performs its analysis
+**Pipeline Flow:**
+1. Each step reads from `context.data` (results from previous steps)
+2. Performs its specific analysis
 3. Writes results back to `context.data`
 4. Updates job progress in database
+5. Returns updated context to next step
 
 ### Parallel Processing
 
-Steps 3-7 (static analysis, code parsing, test analysis, documentation scanning, security scanning) can run in parallel since they have no interdependencies. The optimized pipeline should use `Promise.all()` to run these concurrently.
+The orchestrator provides two execution modes:
+
+- **Sequential** (`execute()`): Steps run one after another
+- **Optimized** (`executeOptimized()`): Steps 3-7 run in parallel via `Promise.all()`
+
+Steps 3-7 can run concurrently since they have no interdependencies:
+- Static Analysis
+- Code Parser
+- Test Analyzer
+- Documentation Scanner
+- Security Scanner
+
+This reduces total analysis time by ~40%.
+
+### Singleton Services
+
+All services are instantiated once and exported from `/backend/src/instances.ts`:
+
+```typescript
+export const githubService = new GitHubService();
+export const claudeService = new ClaudeService();
+export const cacheService = new CacheService();
+export const databaseService = new DatabaseService();
+```
+
+Pipeline steps and API routes import these singletons rather than creating new instances.
 
 ### Error Handling
 
-All pipeline steps should:
-- Throw typed errors with error codes (see `ErrorCode` enum in TDD.md)
-- Mark recoverable errors appropriately
-- Update job status to 'failed' with error message on unrecoverable errors
-- Clean up temporary resources in finally blocks
+All pipeline steps follow consistent error handling:
 
-### Anti-Gaming Mechanisms
-
-The evaluation should detect and penalize:
-- Auto-generated test files with low assertion quality
-- Copy-pasted boilerplate code
-- Suspicious commit patterns
-- Over-documentation of obvious code
-- README claims not matching actual implementation
-
-## Environment Variables
-
-Required environment variables:
-
-```bash
-# GitHub
-GITHUB_TOKEN=<personal access token>
-
-# Claude API
-CLAUDE_API_KEY=<api key>
-CLAUDE_MODEL=claude-opus-4-5-20251101
-
-# Database
-SUPABASE_URL=<project url>
-SUPABASE_KEY=<service role key>
-
-# Cache
-REDIS_URL=<redis connection string>
-
-# Storage (for cloned repos)
-GCS_BUCKET=giteval-repos
+```typescript
+try {
+  // Step logic
+  return context;
+} catch (error) {
+  // Log error
+  // Update job status to 'failed'
+  // Re-throw for orchestrator to handle
+  throw error;
+} finally {
+  // Clean up resources if needed
+}
 ```
+
+Errors use the `ErrorCode` enum from shared types:
+- `GITHUB_API_ERROR`
+- `CLONE_FAILED`
+- `REPOSITORY_TOO_LARGE`
+- `ANALYSIS_TIMEOUT`
+- `CLAUDE_API_ERROR`
+- etc.
+
+### Type Safety
+
+The project maintains strict type safety:
+- Shared types in `/shared/types.ts`
+- Database types converted to application types via helper functions
+- All API requests/responses typed
+- No `any` types except in `context.data` accumulator
 
 ## Important Design Decisions
 
-1. **Commit SHA as Cache Key:** Always include commit SHA in cache lookups to ensure evaluations match specific code versions. Never cache by URL alone.
+### 1. Commit SHA as Cache Key
+Always include commit SHA in cache lookups to ensure evaluations match specific code versions. Never cache by URL alone. If a repository is updated, the new commit gets a fresh evaluation.
 
-2. **No Code Storage:** The system should never permanently store repository code - only clone temporarily, analyze, then delete. Only metadata and analysis results are stored.
+### 2. No Code Storage
+The system never permanently stores repository code. The flow is:
+1. Clone to temporary directory
+2. Analyze
+3. Delete clone
+4. Store only metadata and analysis results
 
-3. **Size Limits:** Repositories are limited to 1GB max size and 10,000 files. Analysis timeout is 5 minutes max.
+This ensures we don't violate repository licenses and keeps storage costs minimal.
 
-4. **Prompt Design:** The Claude API evaluation uses a structured prompt with detailed rubric (see TDD.md lines 582-686). Always request JSON responses with specific schema for parsing.
+### 3. Size Limits
+Hard limits to prevent abuse and ensure reasonable analysis times:
+- **Repository size**: 1GB max
+- **File count**: 10,000 files max
+- **Analysis timeout**: 5 minutes max
+- **Clone timeout**: 1 minute max
 
-5. **Progress Updates:** Update job progress after each pipeline step so users can see real-time progress during the 30-60 second analysis.
+These are enforced in the clone step and configurable via environment variables.
 
-6. **Component Stubs:** Most frontend components and all backend pipeline steps are currently empty stubs. Implementation should follow the interfaces and patterns documented in TDD.md.
+### 4. Prompt Engineering
+The Claude API evaluation uses a detailed structured prompt with:
+- Complete evaluation rubric with point values
+- Anti-gaming detection requirements
+- JSON schema for response format
+- Specific examples and evidence requirements
+
+See `/backend/src/services/claude.ts` for the full prompt.
+
+### 5. Progress Updates
+Job progress is updated after each pipeline step (0-100%):
+- 0%: Job created
+- 10%: Cache checked
+- 20%: Repository cloned
+- 30-70%: Analysis steps
+- 80%: AI evaluation
+- 90%: Report assembly
+- 100%: Complete
+
+This provides real-time feedback during the 30-60 second analysis.
+
+### 6. Gradual Fallback
+When fetching evaluations:
+1. Check Redis first (fastest)
+2. If miss, check Supabase
+3. If found in Supabase, backfill Redis
+4. If miss completely, return null (trigger new evaluation)
 
 ## Project Status
 
-This is an early-stage project with:
-- Project structure and architecture defined (PRD.md, TDD.md, STRUCTURE.md)
-- Frontend scaffolding in place (Next.js app router, empty components)
-- Backend structure defined (pipeline steps, services as stubs)
-- Supabase configuration initialized
-- **No actual implementation yet** - all files are stubs or TODOs
+**Implementation Status:**
 
-When implementing features:
-1. Follow the evaluation rubric defined in PRD.md
-2. Implement pipeline steps in the order they execute
-3. Use TypeScript interfaces from TDD.md (lines 292-410)
-4. Maintain the three-layer caching strategy
-5. Test with real GitHub repositories to validate analysis accuracy
+✅ **Fully Implemented:**
+- All 14 backend pipeline steps
+- All 4 core services (GitHub, Claude, Cache, Database)
+- Frontend landing page with full UI
+- All 9 UI components
+- Shared type system
+- Database schema and migrations
+- Three-layer caching strategy
+- Error handling framework
+- Pipeline orchestrator with parallel optimization
+
+⚠️ **Partially Implemented:**
+- Dynamic report pages (`/[owner]/[repo]` skeleton exists)
+- User profile evaluation (`/[username]` skeleton exists)
+- Some advanced visualization features
+- CDN/edge caching layer
+
+📋 **Not Yet Implemented:**
+- Production deployment configuration
+- Rate limiting and abuse prevention
+- Email notifications
+- Webhook support for automatic re-evaluation
+- Public API for third-party integrations
+
+## Git Workflow
+
+**Current Branch:** main
+
+**Recent Commits:**
+- `65f0cb5` - Add keys + clean up
+- `0201d85` - Phase 3: Frontend implementation
+- `da1ac77` - Phase 2: Backend analysis pipeline implementation
+- `a4f531e` - Phase 1: Core infrastructure
+- `3ea7625` - Supabase initialization
+
+**Modified Files (uncommitted):**
+- `backend/src/db/supabase.ts`
+- `backend/src/pipeline/orchestrator.ts`
+- `backend/src/services/cache.ts`
+- `backend/src/services/claude.ts`
+- `backend/src/services/github.ts`
+- `shared/` (new directory)
+
+## Testing Strategy
+
+**Current Status:** No automated tests yet
+
+**Recommended Approach:**
+1. Unit tests for services (GitHub, Claude, Cache, Database)
+2. Integration tests for pipeline steps
+3. End-to-end tests for full evaluation flow
+4. Mock external APIs (GitHub, Claude) in tests
+5. Use real repositories for validation testing
+
+**Test Repositories:**
+Consider testing against well-known repos with varying quality:
+- High quality: `facebook/react`, `microsoft/vscode`
+- Medium quality: Popular but imperfect projects
+- Low quality: Minimal repos, tutorial projects
+
+## Performance Considerations
+
+**Current Performance:**
+- Sequential pipeline: ~60-90 seconds
+- Optimized pipeline: ~40-60 seconds (40% faster)
+- Most time spent in: Clone (10-20s), AI evaluation (15-25s), Code parsing (5-10s)
+
+**Optimization Opportunities:**
+1. Parallel execution of independent steps (✅ implemented)
+2. Incremental clones (shallow clone with depth=1)
+3. Selective file parsing (skip node_modules, etc.)
+4. Response streaming for long-running evaluations
+5. Background job queue for async processing
+
+## Security Considerations
+
+**Secrets Scanning:**
+The security scanner detects hardcoded secrets but does NOT extract or store them. It only reports their presence.
+
+**API Key Protection:**
+- GitHub token: Read-only access, public repos only
+- Claude API key: Rate-limited, monitored for abuse
+- Supabase service key: Backend only, never exposed to frontend
+
+**Repository Safety:**
+- Clones are isolated to temporary directories
+- No code execution from evaluated repositories
+- Size limits prevent resource exhaustion
+- Timeouts prevent hanging operations
+
+## Deployment
+
+**Planned Architecture:**
+- Frontend: Vercel (Next.js native deployment)
+- Backend: Railway or Render (Node.js hosting)
+- Database: Supabase (managed PostgreSQL)
+- Cache: Upstash Redis (serverless Redis)
+- CDN: Cloudflare (edge caching)
+
+**Environment Setup:**
+See "Environment Variables" sections above for required configuration.
+
+## Troubleshooting
+
+**Common Issues:**
+
+1. **Clone fails**: Check GitHub token permissions, repository size, network connectivity
+2. **Claude API errors**: Verify API key, check rate limits, ensure model name is correct
+3. **Cache misses**: Verify Redis connection, check TTL configuration
+4. **Database errors**: Check Supabase connection, verify migrations are applied
+5. **Frontend build fails**: Ensure all environment variables are set, check Node.js version
+
+**Debugging:**
+- Backend logs to console (consider adding structured logging)
+- Frontend uses React Hot Toast for user-facing errors
+- Check job status in database for pipeline failures
+- Monitor Redis for cache hit rates

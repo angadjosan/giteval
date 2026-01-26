@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
-import type { Evaluation } from '../../../frontend/lib/types';
-import { ErrorCode, EvaluationError } from '../../../frontend/lib/types';
+import type { Evaluation } from '../../../shared/types';
+import { ErrorCode, EvaluationError } from '../../../shared/types';
 
 export class CacheService {
   private client: RedisClientType;
@@ -189,4 +189,24 @@ export class CacheService {
   isConnected(): boolean {
     return this.connected;
   }
+}
+
+// Convenience function exports
+import { getCacheService } from './instances';
+
+export async function getEvaluation(owner: string, repo: string, commitSha: string): Promise<Evaluation | null> {
+  const service = getCacheService();
+  await service.connect();
+  return service.getEvaluation(owner, repo, commitSha);
+}
+
+export async function setEvaluation(
+  owner: string,
+  repo: string,
+  commitSha: string,
+  evaluation: Evaluation
+): Promise<void> {
+  const service = getCacheService();
+  await service.connect();
+  return service.setEvaluation(owner, repo, commitSha, evaluation);
 }

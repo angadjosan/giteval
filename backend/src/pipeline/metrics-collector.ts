@@ -1,6 +1,6 @@
 // Step 8: Metrics collection - aggregate all analysis data
 import { PipelineStep, PipelineContext } from './orchestrator';
-import { Metrics } from '../../frontend/lib/types';
+import { Metrics } from '../../../shared/types';
 
 export class MetricsCollectorStep implements PipelineStep {
   name = 'MetricsCollector';

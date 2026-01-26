@@ -7,7 +7,7 @@ import type {
   Job,
   UserProfile,
   CategoryScore
-} from '../../../frontend/lib/types';
+} from '../../../shared/types';
 
 export class DatabaseService {
   private client: SupabaseClient;
@@ -188,7 +188,10 @@ export class DatabaseService {
       resultId?: string;
     }
   ): Promise<void> {
-    const updateData: any = { ...updates };
+    const updateData: any = { 
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
 
     if (updates.status === 'processing' && !updates.progress) {
       updateData.started_at = new Date().toISOString();

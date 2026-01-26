@@ -2,6 +2,7 @@
 import { PipelineStep, PipelineContext } from './orchestrator';
 import { evaluateRepository } from '../services/claude';
 import { getRepositoryMetadata } from '../services/github';
+import type { Metrics } from '../../../shared/types';
 
 export class AIEvaluatorStep implements PipelineStep {
   name = 'AIEvaluator';
@@ -17,12 +18,17 @@ export class AIEvaluatorStep implements PipelineStep {
       context.data.repositoryMetadata = metadata;
 
       // Prepare evaluation context
+      const metrics = context.data.metrics as Metrics;
       const evaluationContext = {
+        repoName: `${owner}/${repo}`,
         owner,
         repo,
-        metrics: context.data.metrics,
-        additionalMetrics: context.data.additionalMetrics,
-        metadata,
+        description: metadata.description,
+        languages: metadata.languages,
+        stars: metadata.stars,
+        metrics,
+        readmeContent: context.data.readmeContent,
+        sampleCode: context.data.sampleCode,
       };
 
       // Call Claude API for evaluation

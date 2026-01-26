@@ -1,7 +1,7 @@
 // Step 1: Check if evaluation exists in cache
 import { PipelineStep, PipelineContext } from './orchestrator';
 import { getEvaluation as getCachedEvaluation } from '../services/cache';
-import { getEvaluationByRepo } from '../db/supabase';
+import { getEvaluationByRepo } from '../db';
 import { getCommitSha } from '../services/github';
 
 export class CacheCheckStep implements PipelineStep {

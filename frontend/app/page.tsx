@@ -1,4 +1,5 @@
 import EvaluationForm from '../components/EvaluationForm';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 import { Code2, BarChart3, Lightbulb, Share2 } from 'lucide-react';
 
 export default function HomePage() {
@@ -117,16 +118,7 @@ export default function HomePage() {
           <p className="text-xl mb-8 opacity-90">
             Get comprehensive insights and actionable recommendations in seconds.
           </p>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="inline-block px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Get Started
-          </a>
+          <ScrollToTopButton />
         </div>
       </section>
 

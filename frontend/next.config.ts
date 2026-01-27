@@ -5,9 +5,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   // Ensure static assets are properly handled
-  experimental: {
-    outputFileTracingRoot: undefined,
-  },
+  // outputFileTracingRoot is no longer needed in Next.js 16+
 };
 
 export default nextConfig;

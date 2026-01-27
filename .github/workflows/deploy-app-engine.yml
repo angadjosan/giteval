@@ -85,7 +85,15 @@ jobs:
           BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
           BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
         run: |
-          # Build env vars string for gcloud deploy
+          # Deploy the application first
+          VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
+          gcloud app deploy app.yaml \
+            --project=$PROJECT_ID \
+            --quiet \
+            --version=$VERSION_NAME \
+            --service=backend
+          
+          # Build env vars string for set-env-vars command
           ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN}"
           ENV_VARS="${ENV_VARS},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY}"
           ENV_VARS="${ENV_VARS},SUPABASE_URL=${BACKEND_SUPABASE_URL}"
@@ -102,11 +110,11 @@ jobs:
           [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
           [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
           
-          gcloud app deploy app.yaml \
+          # Set environment variables for the deployed version
+          gcloud app versions set-env-vars $VERSION_NAME \
             --project=$PROJECT_ID \
-            --update-env-vars="${ENV_VARS}" \
-            --quiet \
-            --version=backend-$(date +%Y%m%d-%H%M%S)
+            --service=backend \
+            --set-env-vars="${ENV_VARS}"
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -152,8 +160,16 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: |
+          # Deploy the application first
+          VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
-            --update-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
             --quiet \
-            --version=frontend-$(date +%Y%m%d-%H%M%S)
+            --version=$VERSION_NAME \
+            --service=default
+          
+          # Set environment variables for the deployed version
+          gcloud app versions set-env-vars $VERSION_NAME \
+            --project=$PROJECT_ID \
+            --service=default \
+            --set-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"

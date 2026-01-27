@@ -46,6 +46,25 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: npm run build
 
+      - name: Prepare standalone deployment
+        working-directory: ./frontend
+        run: |
+          echo "Setting up Next.js standalone build for App Engine deployment..."
+
+          # Copy static assets to standalone directory
+          echo "Copying static assets..."
+          cp -r .next/static .next/standalone/.next/
+
+          # Copy public directory to standalone directory
+          echo "Copying public directory..."
+          cp -r public .next/standalone/
+
+          # Verify structure
+          echo "Verifying standalone structure:"
+          ls -la .next/standalone/
+          ls -la .next/standalone/.next/
+          echo "Standalone build prepared successfully!"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:

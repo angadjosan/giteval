@@ -17,9 +17,13 @@ resources:
   memory_gb: 2
   disk_size_gb: 10
 
+# For Next.js standalone builds, we need to use the standalone server
+entrypoint: node .next/standalone/server.js
+
 handlers:
   - url: /.*
     script: auto
+    secure: always
 
 env_variables:
   NODE_ENV: production

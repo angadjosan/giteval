@@ -1,30 +1,45 @@
 # This file specifies files that are *not* uploaded to Google Cloud
 # using gcloud. It follows the same syntax as .gitignore
 
-# Exclude everything by default
-*
+# Exclude source files (we only need the built standalone directory)
+src/
+app/
+components/
+lib/
 
-# Then explicitly include what we need for production
-!.next/**
-!public/**
-!package.json
-!package-lock.json
-!app.yaml
-!next.config.ts
+# Node.js (App Engine will install from package.json)
+node_modules/
+npm-debug.log
+yarn-error.log
 
-# Exclude node_modules (App Engine will install dependencies)
-node_modules/**
-
-# Exclude development files
+# Development files
 .git/
 .gitignore
 .env*
+.env.local
+.env.development
+.env.test
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# Documentation and config (not needed for production)
 *.md
 README.md
 .eslintrc*
 .eslint.config.*
-postcss.config.*
 tsconfig.json
+
+# Next.js cache and build artifacts (keep standalone only)
+.next/cache/
+.next/server/
+.next/static/.gitkeep
+.next/trace
+
+# Include these for standalone deployment
+!.next/standalone/
+!.next/standalone/**
+!package.json
+!package-lock.json
+!app.yaml
+!next.config.ts

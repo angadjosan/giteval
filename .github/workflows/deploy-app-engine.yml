@@ -16,9 +16,66 @@ env:
   GAE_APPLICATION: ${{ secrets.GAE_APPLICATION }}
 
 jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    name: Deploy Frontend
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build Next.js
+        working-directory: ./frontend
+        env:
+          # Use custom API subdomain if set, otherwise use backend-dot-project format
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Frontend to App Engine
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
+        run: |
+          # Deploy the application first
+          VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
+          gcloud app deploy app.yaml \
+            --project=$PROJECT_ID \
+            --quiet \
+            --version=$VERSION_NAME
+          
+          # Set environment variables for the deployed version
+          gcloud app versions set-env-vars $VERSION_NAME \
+            --project=$PROJECT_ID \
+            --service=default \
+            --set-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+
   deploy-backend:
     runs-on: ubuntu-latest
     name: Deploy Backend
+    needs: deploy-frontend  # Deploy backend after frontend is deployed
     
     permissions:
       contents: read
@@ -90,8 +147,7 @@ jobs:
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
-            --version=$VERSION_NAME \
-            --service=backend
+            --version=$VERSION_NAME
           
           # Build env vars string for set-env-vars command
           ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN}"
@@ -115,61 +171,3 @@ jobs:
             --project=$PROJECT_ID \
             --service=backend \
             --set-env-vars="${ENV_VARS}"
-
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    name: Deploy Frontend
-    needs: deploy-backend  # Deploy frontend after backend is deployed
-    
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Build Next.js
-        working-directory: ./frontend
-        env:
-          # Use custom API subdomain if set, otherwise use backend-dot-project format
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
-        run: npm run build
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy Frontend to App Engine
-        working-directory: ./frontend
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
-        run: |
-          # Deploy the application first
-          VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
-          gcloud app deploy app.yaml \
-            --project=$PROJECT_ID \
-            --quiet \
-            --version=$VERSION_NAME \
-            --service=default
-          
-          # Set environment variables for the deployed version
-          gcloud app versions set-env-vars $VERSION_NAME \
-            --project=$PROJECT_ID \
-            --service=default \
-            --set-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"

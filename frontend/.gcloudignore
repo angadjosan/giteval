@@ -7,8 +7,24 @@
 # Then explicitly include what we need for production
 !.next/**
 !public/**
-!node_modules/**
 !package.json
 !package-lock.json
 !app.yaml
 !next.config.ts
+
+# Exclude node_modules (App Engine will install dependencies)
+node_modules/**
+
+# Exclude development files
+.git/
+.gitignore
+.env*
+*.log
+*.tsbuildinfo
+.DS_Store
+*.md
+README.md
+.eslintrc*
+.eslint.config.*
+postcss.config.*
+tsconfig.json

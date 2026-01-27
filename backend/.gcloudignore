@@ -1,19 +1,24 @@
 # This file specifies files that are *not* uploaded to Google Cloud
 # using gcloud. It follows the same syntax as .gitignore
 
+# Exclude source files (we only need dist/)
+src/
+tsconfig.json
+
+# Exclude node_modules (App Engine will install dependencies)
+node_modules/**
+
+# Exclude development and config files
 .git/
 .gitignore
 .env*
 *.log
 *.tsbuildinfo
-src/
-tsconfig.json
 *.md
 .DS_Store
 
 # Include these (use ! to negate)
 !dist/
-!node_modules/
 !package.json
 !package-lock.json
 !app.yaml

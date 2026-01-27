@@ -59,6 +59,14 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: |
+          # Verify .gcloudignore exists and is being used
+          if [ ! -f .gcloudignore ]; then
+            echo "Error: .gcloudignore not found!"
+            exit 1
+          fi
+          echo "Using .gcloudignore:"
+          cat .gcloudignore
+          
           # Deploy the application first
           VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
@@ -142,6 +150,14 @@ jobs:
           BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
           BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
         run: |
+          # Verify .gcloudignore exists and is being used
+          if [ ! -f .gcloudignore ]; then
+            echo "Error: .gcloudignore not found!"
+            exit 1
+          fi
+          echo "Using .gcloudignore:"
+          cat .gcloudignore
+          
           # Deploy the application first
           VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \

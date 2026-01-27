@@ -39,6 +39,7 @@ tsconfig.json
 # Include these for standalone deployment
 !.next/standalone/
 !.next/standalone/**
+!server.js
 !package.json
 !package-lock.json
 !app.yaml

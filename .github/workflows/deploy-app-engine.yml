@@ -51,18 +51,32 @@ jobs:
         run: |
           echo "Setting up Next.js standalone build for App Engine deployment..."
 
-          # Copy static assets to standalone directory
-          echo "Copying static assets..."
-          cp -r .next/static .next/standalone/.next/
+          # Create deploy directory
+          mkdir -p deploy
 
-          # Copy public directory to standalone directory
+          # Copy standalone server.js to deploy root
+          echo "Copying server.js to deploy root..."
+          cp .next/standalone/server.js deploy/server.js
+
+          # Copy static assets
+          echo "Copying static assets..."
+          mkdir -p deploy/.next
+          cp -r .next/static deploy/.next/
+
+          # Copy public directory
           echo "Copying public directory..."
-          cp -r public .next/standalone/
+          cp -r public deploy/
+
+          # Copy package files and config
+          echo "Copying package files and config..."
+          cp package.json deploy/
+          cp package-lock.json deploy/
+          cp app.yaml deploy/
 
           # Verify structure
-          echo "Verifying standalone structure:"
-          ls -la .next/standalone/
-          ls -la .next/standalone/.next/
+          echo "Verifying deploy structure:"
+          ls -la deploy/
+          ls -la deploy/.next/
           echo "Standalone build prepared successfully!"
 
       - name: Authenticate to Google Cloud
@@ -74,17 +88,25 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy Frontend to App Engine
-        working-directory: ./frontend
+        working-directory: ./frontend/deploy
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: |
-          # Verify .gcloudignore exists and is being used
-          if [ ! -f .gcloudignore ]; then
+          # Verify .gcloudignore exists (copy from parent directory)
+          if [ ! -f ../.gcloudignore ]; then
             echo "Error: .gcloudignore not found!"
             exit 1
           fi
+          cp ../.gcloudignore .gcloudignore
           echo "Using .gcloudignore:"
           cat .gcloudignore
+          
+          # Verify server.js exists
+          if [ ! -f server.js ]; then
+            echo "Error: server.js not found in deploy directory!"
+            exit 1
+          fi
+          echo "✓ server.js found"
           
           # Deploy the application first
           VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"

@@ -1,0 +1,16 @@
+dispatch:
+  # Route api subdomain to backend service
+  - url: "api.giteval.com/*"
+    service: backend
+
+  # Route www subdomain to default service (frontend)
+  - url: "www.giteval.com/*"
+    service: default
+
+  # Route main domain to default service (frontend)
+  - url: "giteval.com/*"
+    service: default
+
+  # Default: everything else goes to frontend
+  - url: "*/*"
+    service: default

@@ -16,9 +16,26 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS - allow frontend to call backend
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.FRONTEND_URL,
+    process.env.CUSTOM_DOMAIN ? `https://${process.env.CUSTOM_DOMAIN}` : null,
+    process.env.CUSTOM_DOMAIN ? `https://www.${process.env.CUSTOM_DOMAIN}` : null,
+  ].filter(Boolean) as string[];
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    res.header('Access-Control-Allow-Origin', allowedOrigins[0]);
+  }
+
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
     return;

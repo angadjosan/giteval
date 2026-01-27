@@ -1,0 +1,159 @@
+name: Deploy to Google App Engine
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-app-engine.yml'      
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GAE_APPLICATION: ${{ secrets.GAE_APPLICATION }}
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    name: Deploy Backend
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Verify build output
+        working-directory: ./backend
+        run: |
+          echo "Build complete. Verifying output structure:"
+          echo "✓ Dist directory structure:"
+          ls -la dist/
+          echo ""
+          echo "✓ Main entry point:"
+          ls -la dist/backend/src/index.js
+          echo ""
+          echo "✓ Shared types:"
+          ls -la dist/shared/types.js
+          echo ""
+          echo "Build verification complete!"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Backend to App Engine
+        working-directory: ./backend
+        env:
+          # Required secrets
+          BACKEND_GITHUB_TOKEN: ${{ secrets.BACKEND_GITHUB_TOKEN }}
+          BACKEND_CLAUDE_API_KEY: ${{ secrets.BACKEND_CLAUDE_API_KEY }}
+          BACKEND_SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
+          BACKEND_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKEND_SUPABASE_SERVICE_ROLE_KEY }}
+          BACKEND_REDIS_URL: ${{ secrets.BACKEND_REDIS_URL }}
+          # Optional configuration (with defaults)
+          BACKEND_FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL || '' }}
+          BACKEND_CUSTOM_DOMAIN: ${{ secrets.BACKEND_CUSTOM_DOMAIN || secrets.CUSTOM_DOMAIN || '' }}
+          BACKEND_GITHUB_API_URL: ${{ secrets.BACKEND_GITHUB_API_URL || 'https://api.github.com' }}
+          BACKEND_CLAUDE_MODEL: ${{ secrets.BACKEND_CLAUDE_MODEL || 'claude-opus-4-5-20251101' }}
+          BACKEND_TEMP_DIR: ${{ secrets.BACKEND_TEMP_DIR || '/tmp/giteval' }}
+          BACKEND_MAX_REPO_SIZE_MB: ${{ secrets.BACKEND_MAX_REPO_SIZE_MB || '1024' }}
+          BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
+          BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
+        run: |
+          # Build env vars string for gcloud deploy
+          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN}"
+          ENV_VARS="${ENV_VARS},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY}"
+          ENV_VARS="${ENV_VARS},SUPABASE_URL=${BACKEND_SUPABASE_URL}"
+          ENV_VARS="${ENV_VARS},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY}"
+          ENV_VARS="${ENV_VARS},REDIS_URL=${BACKEND_REDIS_URL}"
+          
+          # Add optional config vars if provided
+          [ -n "${BACKEND_FRONTEND_URL}" ] && ENV_VARS="${ENV_VARS},FRONTEND_URL=${BACKEND_FRONTEND_URL}"
+          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && ENV_VARS="${ENV_VARS},CUSTOM_DOMAIN=${BACKEND_CUSTOM_DOMAIN}"
+          [ -n "${BACKEND_GITHUB_API_URL}" ] && ENV_VARS="${ENV_VARS},GITHUB_API_URL=${BACKEND_GITHUB_API_URL}"
+          [ -n "${BACKEND_CLAUDE_MODEL}" ] && ENV_VARS="${ENV_VARS},CLAUDE_MODEL=${BACKEND_CLAUDE_MODEL}"
+          [ -n "${BACKEND_TEMP_DIR}" ] && ENV_VARS="${ENV_VARS},TEMP_DIR=${BACKEND_TEMP_DIR}"
+          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_SIZE_MB=${BACKEND_MAX_REPO_SIZE_MB}"
+          [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
+          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
+          
+          gcloud app deploy app.yaml \
+            --project=$PROJECT_ID \
+            --update-env-vars="${ENV_VARS}" \
+            --quiet \
+            --version=backend-$(date +%Y%m%d-%H%M%S)
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    name: Deploy Frontend
+    needs: deploy-backend  # Deploy frontend after backend is deployed
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build Next.js
+        working-directory: ./frontend
+        env:
+          # Use custom API subdomain if set, otherwise use backend-dot-project format
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Frontend to App Engine
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
+        run: |
+          gcloud app deploy app.yaml \
+            --project=$PROJECT_ID \
+            --update-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
+            --quiet \
+            --version=frontend-$(date +%Y%m%d-%H%M%S)

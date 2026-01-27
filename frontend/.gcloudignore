@@ -1,0 +1,14 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+# Exclude everything by default
+*
+
+# Then explicitly include what we need for production
+!.next/**
+!public/**
+!node_modules/**
+!package.json
+!package-lock.json
+!app.yaml
+!next.config.ts

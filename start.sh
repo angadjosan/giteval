@@ -58,6 +58,25 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+# Check if Supabase CLI is installed
+if ! command -v supabase &> /dev/null; then
+    print_warning "Supabase CLI is not installed. Skipping Supabase startup."
+    print_info "Install with: brew install supabase/tap/supabase"
+else
+    # Check if Supabase is already running
+    if supabase status &> /dev/null; then
+        print_info "Supabase is already running"
+    else
+        print_info "Starting Supabase..."
+        if supabase start; then
+            print_success "Supabase started successfully"
+        else
+            print_warning "Failed to start Supabase. Make sure Docker Desktop is running."
+            print_info "You can start Supabase manually with: supabase start"
+        fi
+    fi
+fi
+
 print_info "Starting GitEval application..."
 echo ""
 

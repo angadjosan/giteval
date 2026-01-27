@@ -1,0 +1,19 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+.git/
+.gitignore
+.env*
+*.log
+*.tsbuildinfo
+src/
+tsconfig.json
+*.md
+.DS_Store
+
+# Include these (use ! to negate)
+!dist/
+!node_modules/
+!package.json
+!package-lock.json
+!app.yaml

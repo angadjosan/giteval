@@ -98,18 +98,16 @@ jobs:
           # Verify server.js exists
           test -f server.js || (echo "Error: server.js not found!" && exit 1)
           
+          # Inject environment variables into app.yaml (remove comment lines and append)
+          sed -i '/# NEXT_PUBLIC_API_URL is set during deployment/d' app.yaml
+          echo "            NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}" >> app.yaml
+          
           # Deploy
           VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
             --version=$VERSION_NAME
-          
-          # Set environment variables
-          gcloud app versions set-env-vars $VERSION_NAME \
-            --project=$PROJECT_ID \
-            --service=default \
-            --set-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
   deploy-backend:
     runs-on: ubuntu-latest
@@ -170,26 +168,30 @@ jobs:
           BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
           BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
         run: |
+          # Inject environment variables into app.yaml (remove comment lines and append)
+          sed -i '/# Environment variables are set via gcloud during deployment/d' app.yaml
+          sed -i '/# See .github\/workflows\/deploy-app-engine.yml/d' app.yaml
+          
+          # Add required environment variables
+          echo "            GITHUB_TOKEN: ${BACKEND_GITHUB_TOKEN}" >> app.yaml
+          echo "            CLAUDE_API_KEY: ${BACKEND_CLAUDE_API_KEY}" >> app.yaml
+          echo "            SUPABASE_URL: ${BACKEND_SUPABASE_URL}" >> app.yaml
+          echo "            SUPABASE_SERVICE_ROLE_KEY: ${BACKEND_SUPABASE_SERVICE_ROLE_KEY}" >> app.yaml
+          echo "            REDIS_URL: ${BACKEND_REDIS_URL}" >> app.yaml
+          
+          # Add optional environment variables if they're set
+          [ -n "${BACKEND_FRONTEND_URL}" ] && echo "            FRONTEND_URL: ${BACKEND_FRONTEND_URL}" >> app.yaml
+          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && echo "            CUSTOM_DOMAIN: ${BACKEND_CUSTOM_DOMAIN}" >> app.yaml
+          [ -n "${BACKEND_GITHUB_API_URL}" ] && echo "            GITHUB_API_URL: ${BACKEND_GITHUB_API_URL}" >> app.yaml
+          [ -n "${BACKEND_CLAUDE_MODEL}" ] && echo "            CLAUDE_MODEL: ${BACKEND_CLAUDE_MODEL}" >> app.yaml
+          [ -n "${BACKEND_TEMP_DIR}" ] && echo "            TEMP_DIR: ${BACKEND_TEMP_DIR}" >> app.yaml
+          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && echo "            MAX_REPO_SIZE_MB: ${BACKEND_MAX_REPO_SIZE_MB}" >> app.yaml
+          [ -n "${BACKEND_MAX_REPO_FILES}" ] && echo "            MAX_REPO_FILES: ${BACKEND_MAX_REPO_FILES}" >> app.yaml
+          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && echo "            ANALYSIS_TIMEOUT_MS: ${BACKEND_ANALYSIS_TIMEOUT_MS}" >> app.yaml
+
           # Deploy
           VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
             --version=$VERSION_NAME
-
-          # Build env vars
-          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY},SUPABASE_URL=${BACKEND_SUPABASE_URL},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY},REDIS_URL=${BACKEND_REDIS_URL}"
-          [ -n "${BACKEND_FRONTEND_URL}" ] && ENV_VARS="${ENV_VARS},FRONTEND_URL=${BACKEND_FRONTEND_URL}"
-          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && ENV_VARS="${ENV_VARS},CUSTOM_DOMAIN=${BACKEND_CUSTOM_DOMAIN}"
-          [ -n "${BACKEND_GITHUB_API_URL}" ] && ENV_VARS="${ENV_VARS},GITHUB_API_URL=${BACKEND_GITHUB_API_URL}"
-          [ -n "${BACKEND_CLAUDE_MODEL}" ] && ENV_VARS="${ENV_VARS},CLAUDE_MODEL=${BACKEND_CLAUDE_MODEL}"
-          [ -n "${BACKEND_TEMP_DIR}" ] && ENV_VARS="${ENV_VARS},TEMP_DIR=${BACKEND_TEMP_DIR}"
-          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_SIZE_MB=${BACKEND_MAX_REPO_SIZE_MB}"
-          [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
-          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
-
-          # Set environment variables
-          gcloud app versions set-env-vars $VERSION_NAME \
-            --project=$PROJECT_ID \
-            --service=backend \
-            --set-env-vars="${ENV_VARS}"

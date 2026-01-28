@@ -46,7 +46,7 @@ jobs:
       - name: Verify build output
         working-directory: ./backend
         run: |
-          test -f dist/src/index.js || (echo "Error: dist/src/index.js not found!" && exit 1)
+          test -f dist/backend/src/index.js || (echo "Error: dist/backend/src/index.js not found!" && exit 1)
           echo "✓ Build verified"
 
       - name: Authenticate to Google Cloud

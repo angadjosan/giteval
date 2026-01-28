@@ -141,12 +141,13 @@ jobs:
           cp -r public deploy/
           cp app.yaml deploy/
           
-          # Ensure start script matches entrypoint
+          # Ensure start script matches entrypoint and skip App Engine build
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('deploy/package.json', 'utf8'));
             pkg.scripts = pkg.scripts || {};
             pkg.scripts.start = 'node server.js';
+            pkg.scripts['gcp-build'] = ''; // Skip App Engine automatic build
             delete pkg.scripts.build;
             delete pkg.scripts.dev;
             fs.writeFileSync('deploy/package.json', JSON.stringify(pkg, null, 2));

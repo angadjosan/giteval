@@ -3,7 +3,8 @@
 
 # Source files (not needed - we only deploy dist/)
 src/
-tsconfig.json
+# tsconfig.json is needed for gcp-build if it runs, but we skip it with gcp-build script
+# Keeping it excluded since we skip the build step
 
 # Development files
 .git/

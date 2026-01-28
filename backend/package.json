@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "gcp-build": "echo 'Skipping build - already built in CI'",
     "start": "node dist/backend/src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

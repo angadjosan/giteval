@@ -42,9 +42,11 @@ jobs:
       - name: Build Next.js
         working-directory: ./frontend
         env:
-          # NEXT_PUBLIC_API_URL is optional - defaults to api.giteval.com/api
+          # NEXT_PUBLIC_API_URL: Use relative /api for production (proxied via rewrites)
           # Can be set via GitHub secret NEXT_PUBLIC_API_URL or Secret Manager secret giteval-next-public-api-url
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.giteval.com/api' }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || '/api' }}
+          # BACKEND_SERVICE_URL: Backend service URL for Next.js rewrites (proxies /api/* to backend)
+          BACKEND_SERVICE_URL: ${{ secrets.BACKEND_SERVICE_URL || 'https://backend-dot-giteval.uc.r.appspot.com' }}
         run: npm run build
 
       - name: Prepare standalone deployment

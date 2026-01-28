@@ -26,6 +26,9 @@ handlers:
 env_variables:
   NODE_ENV: production
   PORT: 8080
+  # Backend service URL for Next.js rewrites (proxies /api/* to backend)
+  BACKEND_SERVICE_URL: https://backend-dot-giteval.uc.r.appspot.com
 
 # NEXT_PUBLIC_API_URL is loaded from Google Secret Manager or defaults
+# For production, set NEXT_PUBLIC_API_URL=/api to use relative URLs (proxied)
 # See setup-secrets.sh for setting up secrets

@@ -58,12 +58,14 @@ jobs:
           cp -r public deploy/
           cp app.yaml deploy/
           
-          # Remove build scripts
+          # Ensure start script matches entrypoint
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('deploy/package.json', 'utf8'));
-            delete pkg.scripts?.build;
-            delete pkg.scripts?.dev;
+            pkg.scripts = pkg.scripts || {};
+            pkg.scripts.start = 'node server.js';
+            delete pkg.scripts.build;
+            delete pkg.scripts.dev;
             fs.writeFileSync('deploy/package.json', JSON.stringify(pkg, null, 2));
           "
           

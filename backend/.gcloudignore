@@ -17,3 +17,7 @@ src/
 
 # Dependencies (App Engine will install from package.json)
 node_modules/
+
+# CRITICAL: Explicitly include dist directory (overrides root .gitignore)
+# The ! prefix means "do not ignore this"
+!dist/

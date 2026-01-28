@@ -136,7 +136,11 @@ jobs:
         working-directory: ./backend
         run: |
           test -f dist/backend/src/index.js || (echo "Error: dist/backend/src/index.js not found!" && exit 1)
-          echo "✓ Build verified"
+          echo "✓ Build verified: dist/backend/src/index.js exists"
+
+          # Show dist directory structure for debugging
+          echo "Dist directory contents:"
+          find dist -type f | head -20
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -146,6 +150,16 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Verify deployment files
+        working-directory: ./backend
+        run: |
+          echo "Files to be deployed (excluding node_modules):"
+          find . -type f -not -path "./node_modules/*" | grep -E "(dist/|package.json|app.yaml|\.gcloudignore)" | head -30
+
+          echo ""
+          echo "Checking .gcloudignore includes dist:"
+          grep -A 2 "!dist/" .gcloudignore || echo "WARNING: !dist/ not found in .gcloudignore"
+
       - name: Deploy Backend to App Engine
         working-directory: ./backend
         run: |
@@ -154,4 +168,15 @@ jobs:
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
-            --version=$VERSION_NAME
+            --version=$VERSION_NAME \
+            --promote
+
+      - name: Deploy dispatch rules
+        working-directory: .
+        run: |
+          echo "Deploying dispatch.yaml to route api.giteval.com to backend service..."
+          gcloud app deploy dispatch.yaml \
+            --project=$PROJECT_ID \
+            --quiet
+
+          echo "✓ Dispatch rules deployed - api.giteval.com now routes to backend service"

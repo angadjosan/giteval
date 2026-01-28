@@ -16,92 +16,9 @@ env:
   GAE_APPLICATION: ${{ secrets.GAE_APPLICATION }}
 
 jobs:
-  deploy-backend:
-    runs-on: ubuntu-latest
-    name: Deploy Backend
-    
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Build TypeScript
-        working-directory: ./backend
-        run: npm run build
-
-      - name: Verify build output
-        working-directory: ./backend
-        run: |
-          test -f dist/backend/src/index.js || (echo "Error: dist/backend/src/index.js not found!" && exit 1)
-          echo "✓ Build verified"
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy Backend to App Engine
-        working-directory: ./backend
-        env:
-          BACKEND_GITHUB_TOKEN: ${{ secrets.BACKEND_GITHUB_TOKEN }}
-          BACKEND_CLAUDE_API_KEY: ${{ secrets.BACKEND_CLAUDE_API_KEY }}
-          BACKEND_SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
-          BACKEND_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKEND_SUPABASE_SERVICE_ROLE_KEY }}
-          BACKEND_REDIS_URL: ${{ secrets.BACKEND_REDIS_URL }}
-          BACKEND_FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL || '' }}
-          BACKEND_CUSTOM_DOMAIN: ${{ secrets.BACKEND_CUSTOM_DOMAIN || secrets.CUSTOM_DOMAIN || '' }}
-          BACKEND_GITHUB_API_URL: ${{ secrets.BACKEND_GITHUB_API_URL || 'https://api.github.com' }}
-          BACKEND_CLAUDE_MODEL: ${{ secrets.BACKEND_CLAUDE_MODEL || 'claude-opus-4-5-20251101' }}
-          BACKEND_TEMP_DIR: ${{ secrets.BACKEND_TEMP_DIR || '/tmp/giteval' }}
-          BACKEND_MAX_REPO_SIZE_MB: ${{ secrets.BACKEND_MAX_REPO_SIZE_MB || '1024' }}
-          BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
-          BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
-        run: |
-          # Deploy
-          VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
-          gcloud app deploy app.yaml \
-            --project=$PROJECT_ID \
-            --quiet \
-            --version=$VERSION_NAME
-          
-          # Build env vars
-          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY},SUPABASE_URL=${BACKEND_SUPABASE_URL},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY},REDIS_URL=${BACKEND_REDIS_URL}"
-          [ -n "${BACKEND_FRONTEND_URL}" ] && ENV_VARS="${ENV_VARS},FRONTEND_URL=${BACKEND_FRONTEND_URL}"
-          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && ENV_VARS="${ENV_VARS},CUSTOM_DOMAIN=${BACKEND_CUSTOM_DOMAIN}"
-          [ -n "${BACKEND_GITHUB_API_URL}" ] && ENV_VARS="${ENV_VARS},GITHUB_API_URL=${BACKEND_GITHUB_API_URL}"
-          [ -n "${BACKEND_CLAUDE_MODEL}" ] && ENV_VARS="${ENV_VARS},CLAUDE_MODEL=${BACKEND_CLAUDE_MODEL}"
-          [ -n "${BACKEND_TEMP_DIR}" ] && ENV_VARS="${ENV_VARS},TEMP_DIR=${BACKEND_TEMP_DIR}"
-          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_SIZE_MB=${BACKEND_MAX_REPO_SIZE_MB}"
-          [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
-          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
-          
-          # Set environment variables
-          gcloud app versions set-env-vars $VERSION_NAME \
-            --project=$PROJECT_ID \
-            --service=backend \
-            --set-env-vars="${ENV_VARS}"
-
   deploy-frontend:
     runs-on: ubuntu-latest
     name: Deploy Frontend
-    needs: deploy-backend  # Deploy frontend after backend is deployed
     
     permissions:
       contents: read
@@ -193,3 +110,86 @@ jobs:
             --project=$PROJECT_ID \
             --service=default \
             --set-env-vars="NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    name: Deploy Backend
+    needs: deploy-frontend  # Deploy backend after frontend is deployed
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Verify build output
+        working-directory: ./backend
+        run: |
+          test -f dist/backend/src/index.js || (echo "Error: dist/backend/src/index.js not found!" && exit 1)
+          echo "✓ Build verified"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Backend to App Engine
+        working-directory: ./backend
+        env:
+          BACKEND_GITHUB_TOKEN: ${{ secrets.BACKEND_GITHUB_TOKEN }}
+          BACKEND_CLAUDE_API_KEY: ${{ secrets.BACKEND_CLAUDE_API_KEY }}
+          BACKEND_SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
+          BACKEND_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKEND_SUPABASE_SERVICE_ROLE_KEY }}
+          BACKEND_REDIS_URL: ${{ secrets.BACKEND_REDIS_URL }}
+          BACKEND_FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL || '' }}
+          BACKEND_CUSTOM_DOMAIN: ${{ secrets.BACKEND_CUSTOM_DOMAIN || secrets.CUSTOM_DOMAIN || '' }}
+          BACKEND_GITHUB_API_URL: ${{ secrets.BACKEND_GITHUB_API_URL || 'https://api.github.com' }}
+          BACKEND_CLAUDE_MODEL: ${{ secrets.BACKEND_CLAUDE_MODEL || 'claude-opus-4-5-20251101' }}
+          BACKEND_TEMP_DIR: ${{ secrets.BACKEND_TEMP_DIR || '/tmp/giteval' }}
+          BACKEND_MAX_REPO_SIZE_MB: ${{ secrets.BACKEND_MAX_REPO_SIZE_MB || '1024' }}
+          BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
+          BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
+        run: |
+          # Deploy
+          VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
+          gcloud app deploy app.yaml \
+            --project=$PROJECT_ID \
+            --quiet \
+            --version=$VERSION_NAME
+
+          # Build env vars
+          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY},SUPABASE_URL=${BACKEND_SUPABASE_URL},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY},REDIS_URL=${BACKEND_REDIS_URL}"
+          [ -n "${BACKEND_FRONTEND_URL}" ] && ENV_VARS="${ENV_VARS},FRONTEND_URL=${BACKEND_FRONTEND_URL}"
+          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && ENV_VARS="${ENV_VARS},CUSTOM_DOMAIN=${BACKEND_CUSTOM_DOMAIN}"
+          [ -n "${BACKEND_GITHUB_API_URL}" ] && ENV_VARS="${ENV_VARS},GITHUB_API_URL=${BACKEND_GITHUB_API_URL}"
+          [ -n "${BACKEND_CLAUDE_MODEL}" ] && ENV_VARS="${ENV_VARS},CLAUDE_MODEL=${BACKEND_CLAUDE_MODEL}"
+          [ -n "${BACKEND_TEMP_DIR}" ] && ENV_VARS="${ENV_VARS},TEMP_DIR=${BACKEND_TEMP_DIR}"
+          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_SIZE_MB=${BACKEND_MAX_REPO_SIZE_MB}"
+          [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
+          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
+
+          # Set environment variables
+          gcloud app versions set-env-vars $VERSION_NAME \
+            --project=$PROJECT_ID \
+            --service=backend \
+            --set-env-vars="${ENV_VARS}"

@@ -28,7 +28,7 @@ export default function EvaluationForm() {
       const { owner, repo } = parseGitHubUrl(url);
 
       // Start evaluation
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.giteval.com/api';
       const response = await fetch(`${apiUrl}/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

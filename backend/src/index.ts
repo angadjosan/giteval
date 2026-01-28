@@ -1,11 +1,11 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import { getDatabaseService, getGitHubService, initializeServices } from './services/instances';
 import { executePipeline } from './pipeline/orchestrator';
 import type { Job, Evaluation } from '../../shared/types';
 
-// Load environment variables
-dotenv.config();
+// Environment variables are loaded from:
+// - Production: Google Secret Manager (via initializeServices)
+// - Local dev: Environment variables (set manually or via .env file with dotenv-cli)
 
 const app = express();
 const PORT = process.env.PORT || 3001;

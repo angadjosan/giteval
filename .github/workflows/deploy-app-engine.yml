@@ -81,31 +81,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Grant App Engine access to secrets
-        run: |
-          PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
-          SERVICE_ACCOUNT="${PROJECT_NUMBER}@appspot.gserviceaccount.com"
-          
-          # Grant access to frontend secret (if it exists)
-          gcloud secrets add-iam-policy-binding giteval-next-public-api-url \
-            --project=$PROJECT_ID \
-            --member="serviceAccount:${SERVICE_ACCOUNT}" \
-            --role="roles/secretmanager.secretAccessor" \
-            --quiet || echo "Secret giteval-next-public-api-url not found, skipping"
-          
-          # Grant access to all giteval secrets
-          for secret in giteval-github-token giteval-claude-api-key giteval-supabase-url \
-                        giteval-supabase-service-role-key giteval-redis-url \
-                        giteval-frontend-url giteval-custom-domain giteval-github-api-url \
-                        giteval-claude-model giteval-temp-dir giteval-max-repo-size-mb \
-                        giteval-max-repo-files giteval-analysis-timeout-ms; do
-            gcloud secrets add-iam-policy-binding "$secret" \
-              --project=$PROJECT_ID \
-              --member="serviceAccount:${SERVICE_ACCOUNT}" \
-              --role="roles/secretmanager.secretAccessor" \
-              --quiet || echo "Secret $secret not found, skipping"
-          done
-
       - name: Deploy Frontend to App Engine
         working-directory: ./frontend/deploy
         run: |
@@ -170,24 +145,6 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-
-      - name: Grant App Engine access to secrets
-        run: |
-          PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
-          SERVICE_ACCOUNT="${PROJECT_NUMBER}@appspot.gserviceaccount.com"
-          
-          # Grant access to all giteval secrets
-          for secret in giteval-github-token giteval-claude-api-key giteval-supabase-url \
-                        giteval-supabase-service-role-key giteval-redis-url \
-                        giteval-frontend-url giteval-custom-domain giteval-github-api-url \
-                        giteval-claude-model giteval-temp-dir giteval-max-repo-size-mb \
-                        giteval-max-repo-files giteval-analysis-timeout-ms; do
-            gcloud secrets add-iam-policy-binding "$secret" \
-              --project=$PROJECT_ID \
-              --member="serviceAccount:${SERVICE_ACCOUNT}" \
-              --role="roles/secretmanager.secretAccessor" \
-              --quiet || echo "Secret $secret not found, skipping"
-          done
 
       - name: Deploy Backend to App Engine
         working-directory: ./backend

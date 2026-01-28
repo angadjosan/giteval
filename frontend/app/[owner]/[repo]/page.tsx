@@ -46,7 +46,7 @@ export default function RepositoryReportPage({ params }: PageProps) {
 
     const poll = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.giteval.com/api';
         const response = await fetch(`${apiUrl}/evaluation/${jobId}`);
         const data = await response.json();
 
@@ -84,7 +84,7 @@ export default function RepositoryReportPage({ params }: PageProps) {
 
   const fetchCachedReport = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.giteval.com/api';
       const response = await fetch(`${apiUrl}/report/${owner}/${repo}`);
       const data = await response.json();
 

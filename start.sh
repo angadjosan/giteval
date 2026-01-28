@@ -32,13 +32,13 @@ print_warning() {
 # Function to cleanup background processes
 cleanup() {
     print_info "Shutting down services..."
-    if [ ! -z "$BACKEND_PID" ]; then
-        kill $BACKEND_PID 2>/dev/null || true
-        print_info "Backend stopped (PID: $BACKEND_PID)"
-    fi
     if [ ! -z "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null || true
         print_info "Frontend stopped (PID: $FRONTEND_PID)"
+    fi
+    if [ ! -z "$BACKEND_PID" ]; then
+        kill $BACKEND_PID 2>/dev/null || true
+        print_info "Backend stopped (PID: $BACKEND_PID)"
     fi
     exit 0
 }
@@ -62,13 +62,6 @@ print_info "Starting GitEval application..."
 echo ""
 
 # Check if node_modules exist, if not, install dependencies
-if [ ! -d "backend/node_modules" ]; then
-    print_warning "Backend dependencies not found. Installing..."
-    cd backend
-    npm install
-    cd ..
-fi
-
 if [ ! -d "frontend/node_modules" ]; then
     print_warning "Frontend dependencies not found. Installing..."
     cd frontend
@@ -76,17 +69,12 @@ if [ ! -d "frontend/node_modules" ]; then
     cd ..
 fi
 
-# Start backend
-print_info "Starting backend server..."
-cd backend
-npm run dev > ../backend.log 2>&1 &
-BACKEND_PID=$!
-cd ..
-print_success "Backend started (PID: $BACKEND_PID)"
-print_info "Backend logs: tail -f backend.log"
-
-# Wait a moment for backend to start
-sleep 2
+if [ ! -d "backend/node_modules" ]; then
+    print_warning "Backend dependencies not found. Installing..."
+    cd backend
+    npm install
+    cd ..
+fi
 
 # Start frontend
 print_info "Starting frontend server..."
@@ -97,11 +85,23 @@ cd ..
 print_success "Frontend started (PID: $FRONTEND_PID)"
 print_info "Frontend logs: tail -f frontend.log"
 
+# Wait a moment for frontend to start
+sleep 2
+
+# Start backend
+print_info "Starting backend server..."
+cd backend
+npm run dev > ../backend.log 2>&1 &
+BACKEND_PID=$!
+cd ..
+print_success "Backend started (PID: $BACKEND_PID)"
+print_info "Backend logs: tail -f backend.log"
+
 echo ""
 print_success "Both services are running!"
 echo ""
-echo -e "${GREEN}Backend:${NC}  http://localhost:3001"
 echo -e "${GREEN}Frontend:${NC} http://localhost:3000"
+echo -e "${GREEN}Backend:${NC}  http://localhost:3001"
 echo ""
 print_info "Press Ctrl+C to stop all services"
 echo ""

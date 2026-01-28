@@ -42,8 +42,9 @@ jobs:
       - name: Build Next.js
         working-directory: ./frontend
         env:
-          # Use custom API subdomain if set, otherwise use backend-dot-project format
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
+          # NEXT_PUBLIC_API_URL is optional - defaults to api.giteval.com/api
+          # Can be set via GitHub secret NEXT_PUBLIC_API_URL or Secret Manager secret giteval-next-public-api-url
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.giteval.com/api' }}
         run: npm run build
 
       - name: Prepare standalone deployment
@@ -80,10 +81,33 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Grant App Engine access to secrets
+        run: |
+          PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+          SERVICE_ACCOUNT="${PROJECT_NUMBER}@appspot.gserviceaccount.com"
+          
+          # Grant access to frontend secret (if it exists)
+          gcloud secrets add-iam-policy-binding giteval-next-public-api-url \
+            --project=$PROJECT_ID \
+            --member="serviceAccount:${SERVICE_ACCOUNT}" \
+            --role="roles/secretmanager.secretAccessor" \
+            --quiet || echo "Secret giteval-next-public-api-url not found, skipping"
+          
+          # Grant access to all giteval secrets
+          for secret in giteval-github-token giteval-claude-api-key giteval-supabase-url \
+                        giteval-supabase-service-role-key giteval-redis-url \
+                        giteval-frontend-url giteval-custom-domain giteval-github-api-url \
+                        giteval-claude-model giteval-temp-dir giteval-max-repo-size-mb \
+                        giteval-max-repo-files giteval-analysis-timeout-ms; do
+            gcloud secrets add-iam-policy-binding "$secret" \
+              --project=$PROJECT_ID \
+              --member="serviceAccount:${SERVICE_ACCOUNT}" \
+              --role="roles/secretmanager.secretAccessor" \
+              --quiet || echo "Secret $secret not found, skipping"
+          done
+
       - name: Deploy Frontend to App Engine
         working-directory: ./frontend/deploy
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: |
           # Create deploy-specific .gcloudignore
           cat > .gcloudignore << 'EOF'
@@ -98,11 +122,7 @@ jobs:
           # Verify server.js exists
           test -f server.js || (echo "Error: server.js not found!" && exit 1)
           
-          # Inject environment variables into app.yaml (remove comment lines and append)
-          sed -i '/# NEXT_PUBLIC_API_URL is set during deployment/d' app.yaml
-          echo "            NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}" >> app.yaml
-          
-          # Deploy
+          # Deploy (secrets are loaded from Secret Manager at runtime)
           VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
@@ -151,45 +171,28 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Grant App Engine access to secrets
+        run: |
+          PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+          SERVICE_ACCOUNT="${PROJECT_NUMBER}@appspot.gserviceaccount.com"
+          
+          # Grant access to all giteval secrets
+          for secret in giteval-github-token giteval-claude-api-key giteval-supabase-url \
+                        giteval-supabase-service-role-key giteval-redis-url \
+                        giteval-frontend-url giteval-custom-domain giteval-github-api-url \
+                        giteval-claude-model giteval-temp-dir giteval-max-repo-size-mb \
+                        giteval-max-repo-files giteval-analysis-timeout-ms; do
+            gcloud secrets add-iam-policy-binding "$secret" \
+              --project=$PROJECT_ID \
+              --member="serviceAccount:${SERVICE_ACCOUNT}" \
+              --role="roles/secretmanager.secretAccessor" \
+              --quiet || echo "Secret $secret not found, skipping"
+          done
+
       - name: Deploy Backend to App Engine
         working-directory: ./backend
-        env:
-          BACKEND_GITHUB_TOKEN: ${{ secrets.BACKEND_GITHUB_TOKEN }}
-          BACKEND_CLAUDE_API_KEY: ${{ secrets.BACKEND_CLAUDE_API_KEY }}
-          BACKEND_SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
-          BACKEND_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKEND_SUPABASE_SERVICE_ROLE_KEY }}
-          BACKEND_REDIS_URL: ${{ secrets.BACKEND_REDIS_URL }}
-          BACKEND_FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL || '' }}
-          BACKEND_CUSTOM_DOMAIN: ${{ secrets.BACKEND_CUSTOM_DOMAIN || secrets.CUSTOM_DOMAIN || '' }}
-          BACKEND_GITHUB_API_URL: ${{ secrets.BACKEND_GITHUB_API_URL || 'https://api.github.com' }}
-          BACKEND_CLAUDE_MODEL: ${{ secrets.BACKEND_CLAUDE_MODEL || 'claude-opus-4-5-20251101' }}
-          BACKEND_TEMP_DIR: ${{ secrets.BACKEND_TEMP_DIR || '/tmp/giteval' }}
-          BACKEND_MAX_REPO_SIZE_MB: ${{ secrets.BACKEND_MAX_REPO_SIZE_MB || '1024' }}
-          BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
-          BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
         run: |
-          # Inject environment variables into app.yaml (remove comment lines and append)
-          sed -i '/# Environment variables are set via gcloud during deployment/d' app.yaml
-          sed -i '/# See .github\/workflows\/deploy-app-engine.yml/d' app.yaml
-          
-          # Add required environment variables
-          echo "            GITHUB_TOKEN: ${BACKEND_GITHUB_TOKEN}" >> app.yaml
-          echo "            CLAUDE_API_KEY: ${BACKEND_CLAUDE_API_KEY}" >> app.yaml
-          echo "            SUPABASE_URL: ${BACKEND_SUPABASE_URL}" >> app.yaml
-          echo "            SUPABASE_SERVICE_ROLE_KEY: ${BACKEND_SUPABASE_SERVICE_ROLE_KEY}" >> app.yaml
-          echo "            REDIS_URL: ${BACKEND_REDIS_URL}" >> app.yaml
-          
-          # Add optional environment variables if they're set
-          [ -n "${BACKEND_FRONTEND_URL}" ] && echo "            FRONTEND_URL: ${BACKEND_FRONTEND_URL}" >> app.yaml
-          [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && echo "            CUSTOM_DOMAIN: ${BACKEND_CUSTOM_DOMAIN}" >> app.yaml
-          [ -n "${BACKEND_GITHUB_API_URL}" ] && echo "            GITHUB_API_URL: ${BACKEND_GITHUB_API_URL}" >> app.yaml
-          [ -n "${BACKEND_CLAUDE_MODEL}" ] && echo "            CLAUDE_MODEL: ${BACKEND_CLAUDE_MODEL}" >> app.yaml
-          [ -n "${BACKEND_TEMP_DIR}" ] && echo "            TEMP_DIR: ${BACKEND_TEMP_DIR}" >> app.yaml
-          [ -n "${BACKEND_MAX_REPO_SIZE_MB}" ] && echo "            MAX_REPO_SIZE_MB: ${BACKEND_MAX_REPO_SIZE_MB}" >> app.yaml
-          [ -n "${BACKEND_MAX_REPO_FILES}" ] && echo "            MAX_REPO_FILES: ${BACKEND_MAX_REPO_FILES}" >> app.yaml
-          [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && echo "            ANALYSIS_TIMEOUT_MS: ${BACKEND_ANALYSIS_TIMEOUT_MS}" >> app.yaml
-
-          # Deploy
+          # Deploy (secrets are loaded from Secret Manager at runtime)
           VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \

@@ -1,6 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { getDatabaseService, getGitHubService } from './services/instances';
+import { getDatabaseService, getGitHubService, initializeServices } from './services/instances';
 import { executePipeline } from './pipeline/orchestrator';
 import type { Job, Evaluation } from '../../shared/types';
 
@@ -9,6 +9,12 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Initialize services with secrets from Secret Manager
+initializeServices().catch(err => {
+  console.error('Failed to initialize services with secrets:', err);
+  // Continue anyway - services will use env vars as fallback
+});
 
 // Middleware
 app.use(express.json());

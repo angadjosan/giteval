@@ -26,4 +26,6 @@ handlers:
 env_variables:
   NODE_ENV: production
   PORT: 8080
-  # NEXT_PUBLIC_API_URL is set during deployment
+
+# NEXT_PUBLIC_API_URL is loaded from Google Secret Manager or defaults
+# See setup-secrets.sh for setting up secrets

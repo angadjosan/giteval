@@ -26,5 +26,6 @@ handlers:
 env_variables:
   NODE_ENV: production
   PORT: 8080
-  # Environment variables are set via gcloud during deployment
-  # See .github/workflows/deploy-app-engine.yml
+
+# Secrets are loaded from Google Secret Manager
+# See setup-secrets.sh for setting up secrets

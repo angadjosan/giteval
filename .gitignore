@@ -49,3 +49,4 @@ service_account.json
 *.tsbuildinfo
 next-env.d.ts
 *.log
+setup-secrets.sh

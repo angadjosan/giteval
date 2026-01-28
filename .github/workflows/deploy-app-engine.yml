@@ -49,35 +49,25 @@ jobs:
       - name: Prepare standalone deployment
         working-directory: ./frontend
         run: |
-          echo "Setting up Next.js standalone build for App Engine deployment..."
-
-          # Create deploy directory
+          test -d ".next/standalone" || (echo "Error: Standalone build not found!" && exit 1)
+          
           mkdir -p deploy
-
-          # Copy standalone server.js to deploy root
-          echo "Copying server.js to deploy root..."
-          cp .next/standalone/server.js deploy/server.js
-
-          # Copy static assets
-          echo "Copying static assets..."
+          cp -r .next/standalone/. deploy/
           mkdir -p deploy/.next
           cp -r .next/static deploy/.next/
-
-          # Copy public directory
-          echo "Copying public directory..."
           cp -r public deploy/
-
-          # Copy package files and config
-          echo "Copying package files and config..."
-          cp package.json deploy/
-          cp package-lock.json deploy/
           cp app.yaml deploy/
-
-          # Verify structure
-          echo "Verifying deploy structure:"
-          ls -la deploy/
-          ls -la deploy/.next/
-          echo "Standalone build prepared successfully!"
+          
+          # Remove build scripts
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('deploy/package.json', 'utf8'));
+            delete pkg.scripts?.build;
+            delete pkg.scripts?.dev;
+            fs.writeFileSync('deploy/package.json', JSON.stringify(pkg, null, 2));
+          "
+          
+          test -f deploy/server.js || (echo "Error: server.js not found!" && exit 1)
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -92,30 +82,27 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || format('https://backend-dot-{0}.appspot.com/api', secrets.GCP_PROJECT_ID) }}
         run: |
-          # Verify .gcloudignore exists (copy from parent directory)
-          if [ ! -f ../.gcloudignore ]; then
-            echo "Error: .gcloudignore not found!"
-            exit 1
-          fi
-          cp ../.gcloudignore .gcloudignore
-          echo "Using .gcloudignore:"
-          cat .gcloudignore
+          # Create deploy-specific .gcloudignore
+          cat > .gcloudignore << 'EOF'
+          .git/
+          .gitignore
+          *.md
+          .env*
+          *.log
+          .DS_Store
+          EOF
           
           # Verify server.js exists
-          if [ ! -f server.js ]; then
-            echo "Error: server.js not found in deploy directory!"
-            exit 1
-          fi
-          echo "✓ server.js found"
+          test -f server.js || (echo "Error: server.js not found!" && exit 1)
           
-          # Deploy the application first
+          # Deploy
           VERSION_NAME="frontend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
             --version=$VERSION_NAME
           
-          # Set environment variables for the deployed version
+          # Set environment variables
           gcloud app versions set-env-vars $VERSION_NAME \
             --project=$PROJECT_ID \
             --service=default \
@@ -152,17 +139,8 @@ jobs:
       - name: Verify build output
         working-directory: ./backend
         run: |
-          echo "Build complete. Verifying output structure:"
-          echo "✓ Dist directory structure:"
-          ls -la dist/
-          echo ""
-          echo "✓ Main entry point:"
-          ls -la dist/backend/src/index.js
-          echo ""
-          echo "✓ Shared types:"
-          ls -la dist/shared/types.js
-          echo ""
-          echo "Build verification complete!"
+          test -f dist/src/index.js || (echo "Error: dist/src/index.js not found!" && exit 1)
+          echo "✓ Build verified"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -175,13 +153,11 @@ jobs:
       - name: Deploy Backend to App Engine
         working-directory: ./backend
         env:
-          # Required secrets
           BACKEND_GITHUB_TOKEN: ${{ secrets.BACKEND_GITHUB_TOKEN }}
           BACKEND_CLAUDE_API_KEY: ${{ secrets.BACKEND_CLAUDE_API_KEY }}
           BACKEND_SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
           BACKEND_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKEND_SUPABASE_SERVICE_ROLE_KEY }}
           BACKEND_REDIS_URL: ${{ secrets.BACKEND_REDIS_URL }}
-          # Optional configuration (with defaults)
           BACKEND_FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL || '' }}
           BACKEND_CUSTOM_DOMAIN: ${{ secrets.BACKEND_CUSTOM_DOMAIN || secrets.CUSTOM_DOMAIN || '' }}
           BACKEND_GITHUB_API_URL: ${{ secrets.BACKEND_GITHUB_API_URL || 'https://api.github.com' }}
@@ -191,29 +167,15 @@ jobs:
           BACKEND_MAX_REPO_FILES: ${{ secrets.BACKEND_MAX_REPO_FILES || '10000' }}
           BACKEND_ANALYSIS_TIMEOUT_MS: ${{ secrets.BACKEND_ANALYSIS_TIMEOUT_MS || '300000' }}
         run: |
-          # Verify .gcloudignore exists and is being used
-          if [ ! -f .gcloudignore ]; then
-            echo "Error: .gcloudignore not found!"
-            exit 1
-          fi
-          echo "Using .gcloudignore:"
-          cat .gcloudignore
-          
-          # Deploy the application first
+          # Deploy
           VERSION_NAME="backend-$(date +%Y%m%d-%H%M%S)"
           gcloud app deploy app.yaml \
             --project=$PROJECT_ID \
             --quiet \
             --version=$VERSION_NAME
           
-          # Build env vars string for set-env-vars command
-          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN}"
-          ENV_VARS="${ENV_VARS},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY}"
-          ENV_VARS="${ENV_VARS},SUPABASE_URL=${BACKEND_SUPABASE_URL}"
-          ENV_VARS="${ENV_VARS},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY}"
-          ENV_VARS="${ENV_VARS},REDIS_URL=${BACKEND_REDIS_URL}"
-          
-          # Add optional config vars if provided
+          # Build env vars
+          ENV_VARS="GITHUB_TOKEN=${BACKEND_GITHUB_TOKEN},CLAUDE_API_KEY=${BACKEND_CLAUDE_API_KEY},SUPABASE_URL=${BACKEND_SUPABASE_URL},SUPABASE_SERVICE_ROLE_KEY=${BACKEND_SUPABASE_SERVICE_ROLE_KEY},REDIS_URL=${BACKEND_REDIS_URL}"
           [ -n "${BACKEND_FRONTEND_URL}" ] && ENV_VARS="${ENV_VARS},FRONTEND_URL=${BACKEND_FRONTEND_URL}"
           [ -n "${BACKEND_CUSTOM_DOMAIN}" ] && ENV_VARS="${ENV_VARS},CUSTOM_DOMAIN=${BACKEND_CUSTOM_DOMAIN}"
           [ -n "${BACKEND_GITHUB_API_URL}" ] && ENV_VARS="${ENV_VARS},GITHUB_API_URL=${BACKEND_GITHUB_API_URL}"
@@ -223,7 +185,7 @@ jobs:
           [ -n "${BACKEND_MAX_REPO_FILES}" ] && ENV_VARS="${ENV_VARS},MAX_REPO_FILES=${BACKEND_MAX_REPO_FILES}"
           [ -n "${BACKEND_ANALYSIS_TIMEOUT_MS}" ] && ENV_VARS="${ENV_VARS},ANALYSIS_TIMEOUT_MS=${BACKEND_ANALYSIS_TIMEOUT_MS}"
           
-          # Set environment variables for the deployed version
+          # Set environment variables
           gcloud app versions set-env-vars $VERSION_NAME \
             --project=$PROJECT_ID \
             --service=backend \

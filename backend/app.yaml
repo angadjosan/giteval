@@ -17,7 +17,7 @@ resources:
   memory_gb: 2
   disk_size_gb: 10
 
-entrypoint: node dist/backend/src/index.js
+entrypoint: node dist/src/index.js
 
 handlers:
   - url: /.*
@@ -26,24 +26,5 @@ handlers:
 env_variables:
   NODE_ENV: production
   PORT: 8080
-  # All secrets and configuration are synced from GitHub Secrets during deployment
-  # See .github/workflows/deploy-app-engine.yml for the mapping
-  # 
-  # Required secrets (must be in GitHub Secrets):
-  #   BACKEND_GITHUB_TOKEN -> GITHUB_TOKEN
-  #   BACKEND_CLAUDE_API_KEY -> CLAUDE_API_KEY
-  #   BACKEND_SUPABASE_URL -> SUPABASE_URL
-  #   BACKEND_SUPABASE_SERVICE_ROLE_KEY -> SUPABASE_SERVICE_ROLE_KEY
-  #   BACKEND_REDIS_URL -> REDIS_URL
-  #
-  # Optional configuration (can be in GitHub Secrets or uses defaults):
-  #   BACKEND_FRONTEND_URL -> FRONTEND_URL
-  #   BACKEND_CUSTOM_DOMAIN -> CUSTOM_DOMAIN
-  #   BACKEND_GITHUB_API_URL -> GITHUB_API_URL (default: https://api.github.com)
-  #   BACKEND_CLAUDE_MODEL -> CLAUDE_MODEL (default: claude-opus-4-5-20251101)
-  #   BACKEND_TEMP_DIR -> TEMP_DIR (default: /tmp/giteval)
-  #   BACKEND_MAX_REPO_SIZE_MB -> MAX_REPO_SIZE_MB (default: 1024)
-  #   BACKEND_MAX_REPO_FILES -> MAX_REPO_FILES (default: 10000)
-  #   BACKEND_ANALYSIS_TIMEOUT_MS -> ANALYSIS_TIMEOUT_MS (default: 300000)
-  #
-  # See ENV_VARS_INVENTORY.md for complete documentation
+  # Environment variables are set via gcloud during deployment
+  # See .github/workflows/deploy-app-engine.yml

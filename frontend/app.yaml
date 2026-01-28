@@ -28,5 +28,4 @@ handlers:
 env_variables:
   NODE_ENV: production
   PORT: 8080
-  # NEXT_PUBLIC_API_URL will be set via gcloud deploy --update-env-vars
-  # NEXT_PUBLIC_API_URL: https://your-backend-project.appspot.com/api
+  # NEXT_PUBLIC_API_URL is set during deployment
